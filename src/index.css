@@ -1,0 +1,135 @@
+@import "tailwindcss";
+
+/* Dynamic report print typography controls */
+:root {
+  --report-font-family: "Times New Roman", Times, serif;
+  --report-font-size: 11pt;
+}
+
+.report-typography-scope {
+  font-family: var(--report-font-family) !important;
+  font-size: var(--report-font-size);
+}
+
+.report-typography-scope table,
+.report-typography-scope td,
+.report-typography-scope th,
+.report-typography-scope p,
+.report-typography-scope span:not(.font-mono),
+.report-typography-scope div:not(.font-mono):not(.no-print) {
+  font-family: var(--report-font-family);
+}
+
+.report-typography-scope .report-text-scale {
+  font-size: var(--report-font-size) !important;
+}
+
+@media print {
+  /* Dynamic page sizing and standard margins */
+  @page {
+    size: auto;
+    margin: 10mm 12mm 12mm 12mm;
+  }
+
+  /* CRITICAL: Neutralize overflow on document root and main wrappers so all pages paginate cleanly */
+  html,
+  body {
+    width: 100% !important;
+    height: auto !important;
+    min-height: 100% !important;
+    overflow: visible !important;
+    position: static !important;
+    background-color: #ffffff !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Only reset container layout wrappers, do NOT destroy inner component divs */
+  #root,
+  #root > div,
+  main,
+  .print-scroll-wrapper {
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+    position: static !important;
+    display: block !important;
+    background: #ffffff !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  /* Hide non-printable interface elements */
+  .no-print,
+  header,
+  aside,
+  nav,
+  button:not(.allow-print),
+  .save-notification-toast {
+    display: none !important;
+  }
+
+  /* Clear and definitive page breaks for each report sheet */
+  .print-page-break {
+    page-break-after: always !important;
+    break-after: page !important;
+    clear: both !important;
+    display: block !important;
+    position: relative !important;
+    margin-bottom: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    background-color: #ffffff !important;
+  }
+
+  .print-page-break-before {
+    page-break-before: always !important;
+    break-before: page !important;
+    clear: both !important;
+    display: block !important;
+  }
+
+  /* Prevent awkward cuts inside cards, table rows, and signature boxes */
+  .print-avoid-break,
+  .printable-area,
+  .report-cover-page,
+  table,
+  tr,
+  td,
+  th,
+  .signature-box,
+  .catatan-box {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .printable-area {
+    box-shadow: none !important;
+    border: none !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 auto !important;
+    background-color: #ffffff !important;
+  }
+
+  /* Force table borders and clean rendering */
+  table {
+    border-collapse: collapse !important;
+    width: 100% !important;
+  }
+
+  thead {
+    display: table-header-group !important;
+  }
+
+  tfoot {
+    display: table-footer-group !important;
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "name": "Remix  Aplikasi Rapor Kurikulum Merdeka Versi A",
+  "description": "Sistem Informasi dan Aplikasi Rapor Kurikulum Merdeka Tahun Pelajaran 2026/2027. Dilengkapi Rapor Akademik, P5 Projek Penguatan Profil Pelajar Pancasila, cetak rapor, dan backup database.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
