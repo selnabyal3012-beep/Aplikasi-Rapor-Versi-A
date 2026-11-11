@@ -1,0 +1,79 @@
+{
+  "entities": {
+    "AppData": {
+      "title": "AppData",
+      "description": "State database snapshot and configurations for school report card system",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Document identifier"
+        },
+        "schoolId": {
+          "type": "string",
+          "description": "NPSN or school identifier"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp of last modification"
+        },
+        "updatedBy": {
+          "type": "string",
+          "description": "User email or identifier"
+        },
+        "payloadJson": {
+          "type": "string",
+          "description": "Serialized application data state JSON"
+        }
+      },
+      "required": ["id", "schoolId"]
+    },
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Profile data for teachers and staff members",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Firebase Auth UID"
+        },
+        "email": {
+          "type": "string",
+          "description": "User email"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Full name of teacher or staff"
+        },
+        "role": {
+          "type": "string",
+          "description": "Assigned role",
+          "enum": ["Administrator", "Wali Kelas", "Guru Mapel", "Kepala Sekolah"]
+        },
+        "nip": {
+          "type": "string",
+          "description": "Employee ID number"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Creation timestamp"
+        }
+      },
+      "required": ["uid", "email", "displayName"]
+    }
+  },
+  "firestore": {
+    "/schools/{schoolId}/backups/{backupId}": {
+      "schema": "AppData",
+      "description": "Cloud backup snapshots of school report card data"
+    },
+    "/schools/{schoolId}/state/current": {
+      "schema": "AppData",
+      "description": "Synchronized live cloud database state for the school"
+    },
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User account profiles"
+    }
+  }
+}

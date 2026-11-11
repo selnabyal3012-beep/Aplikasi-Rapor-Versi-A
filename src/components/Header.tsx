@@ -26,7 +26,9 @@ import {
   RefreshCw,
   Eye,
   SlidersHorizontal,
-  EyeOff
+  EyeOff,
+  Cloud,
+  CloudUpload
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { usePWA } from '../hooks/usePWA';
@@ -63,7 +65,11 @@ export const Header: React.FC = () => {
     lastSavedTime,
     openReportPreview,
     actionToolbarMode,
-    setActionToolbarMode
+    setActionToolbarMode,
+    firebaseUser,
+    cloudSyncStatus,
+    syncToCloudFirestore,
+    lastCloudSyncTime
   } = useApp();
 
   const [showDevModal, setShowDevModal] = useState(false);
@@ -225,6 +231,29 @@ export const Header: React.FC = () => {
                 lastSavedText={lastSavedTime}
               />
             </div>
+
+            {/* Tombol Cloud Sync Firebase Firestore */}
+            <button
+              onClick={() => syncToCloudFirestore()}
+              disabled={cloudSyncStatus === 'syncing'}
+              title={
+                cloudSyncStatus === 'syncing'
+                  ? 'Menyinkronkan ke Cloud Firebase Firestore...'
+                  : lastCloudSyncTime
+                  ? `Sinkronkan ke Cloud Firebase Firestore (Terakhir: ${lastCloudSyncTime})`
+                  : 'Sinkronkan data ke Cloud Firebase Firestore'
+              }
+              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer border active:scale-95 disabled:opacity-60 ${
+                cloudSyncStatus === 'synced'
+                  ? 'bg-cyan-700 hover:bg-cyan-600 text-white border-cyan-400'
+                  : 'bg-indigo-600 hover:bg-indigo-500 text-white border-indigo-400'
+              }`}
+            >
+              <CloudUpload size={12} className={cloudSyncStatus === 'syncing' ? 'animate-bounce' : ''} />
+              <span className="hidden sm:inline">
+                {cloudSyncStatus === 'syncing' ? 'SYNC...' : 'CLOUD'}
+              </span>
+            </button>
 
             {/* Tombol Sinkronkan Hubungan Semua Data */}
             <button

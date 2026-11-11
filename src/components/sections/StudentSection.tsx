@@ -23,9 +23,11 @@ import { SaveStatusIndicator } from '../common/SaveStatusIndicator';
 import { useSaveFeedback } from '../../hooks/useSaveFeedback';
 import { exportStudentsToExcel, exportStudentsToCsv } from '../../utils/exportHelper';
 import * as XLSX from 'xlsx';
+import { parseAndImportTemplate } from '../../utils/templateImporter';
 
 export const StudentSection: React.FC = () => {
-  const { db, saveSiswa, deleteSiswa, selectedKelas, selectedSemester, setActiveMenu, openReportPreview } = useApp();
+  const appContext = useApp();
+  const { db, saveSiswa, deleteSiswa, selectedKelas, selectedSemester, setActiveMenu, openReportPreview, showSaveNotification } = appContext;
   const { status: modalSaveStatus, triggerSave: triggerModalSave } = useSaveFeedback();
   const [search, setSearch] = useState('');
   const [filterKelas, setFilterKelas] = useState<string>(selectedKelas);

@@ -21,7 +21,17 @@ import {
   FaseType,
   PiagamAward,
   StudentDecision,
-  ActionToolbarMode
+  ActionToolbarMode,
+  ThemeAccent,
+  ThemeMode,
+  UiFontSize,
+  UiFontFamily,
+  PaperSize,
+  PaperOrientation,
+  PaperMarginPreset,
+  PrintColorMode,
+  PrintTableBorder,
+  PrintMargins
 } from '../types';
 import { INITIAL_DATABASE } from '../data/defaultData';
 import { generateReportDescriptionFromTP } from '../utils/tpDescriptionHelper';
@@ -31,6 +41,17 @@ import {
   cleanupDeletedStudentRelations,
   syncAllStudents
 } from '../utils/studentSyncHelper';
+import {
+  auth,
+  testFirestoreConnection,
+  signInWithGoogle,
+  signOutFirebase
+} from '../services/firebase';
+import {
+  saveStateToFirestore,
+  loadStateFromFirestore,
+  listCloudBackups
+} from '../services/cloudSyncService';
 
 const STORAGE_KEY = 'sdn_balil_rapor_db_2026';
 const CURRENT_USER_KEY = 'sdn_balil_rapor_user';
@@ -106,23 +127,31 @@ interface AppContextType {
   syncAllStudentConnections: () => void;
   deleteSiswa: (idSiswa: string) => void;
   saveKelas: (kelas: ClassData) => void;
+  bulkSaveKelas: (kelasList: ClassData[]) => void;
   deleteKelas: (idKelas: string) => void;
   saveMataPelajaran: (mapel: Subject) => void;
   bulkSaveMataPelajaran: (mapels: Subject[]) => void;
   deleteMataPelajaran: (kode: string) => void;
   saveTP: (tp: LearningObjective) => void;
+  bulkSaveTujuanPembelajaran: (tpList: LearningObjective[]) => void;
   deleteTP: (id: string) => void;
   saveNilaiAkademik: (nilai: AcademicScore) => void;
   bulkSaveNilai: (nilais: AcademicScore[]) => void;
   saveEkskul: (ekskul: Extracurricular) => void;
+  bulkSaveEkskul: (ekskulList: Extracurricular[]) => void;
   deleteEkskul: (id: string) => void;
   saveKehadiran: (kehadiran: Attendance) => void;
+  bulkSaveKehadiran: (kehadiranList: Attendance[]) => void;
   saveCatatanWali: (catatan: TeacherNote) => void;
+  bulkSaveCatatanWali: (catatanList: TeacherNote[]) => void;
   saveP5Projek: (projek: P5Project) => void;
+  bulkSaveP5Projek: (projekList: P5Project[]) => void;
   deleteP5Projek: (id: string) => void;
   saveP5Tahapan: (tahap: P5Stage) => void;
+  bulkSaveP5Tahapan: (tahapList: P5Stage[]) => void;
   deleteP5Tahapan: (id: string) => void;
   saveP5Dimensi: (dim: P5DimensionItem) => void;
+  bulkSaveP5Dimensi: (dimensiList: P5DimensionItem[]) => void;
   deleteP5Dimensi: (id: string) => void;
   saveP5Nilai: (score: P5Score) => void;
   bulkSaveP5Nilai: (scores: P5Score[]) => void;
@@ -144,6 +173,7 @@ interface AppContextType {
   printFontSize: string;
   setPrintFontSize: (size: string) => void;
   savePiagam: (piagam: PiagamAward) => void;
+  bulkSavePiagam: (piagamList: PiagamAward[]) => void;
   deletePiagam: (idPiagam: string) => void;
   saveKeputusanSiswa: (decision: StudentDecision) => void;
   bulkSaveKeputusanSiswa: (decisions: StudentDecision[]) => void;
@@ -179,6 +209,45 @@ interface AppContextType {
   actionToolbarMode: ActionToolbarMode;
   setActionToolbarMode: (mode: ActionToolbarMode) => void;
   toggleActionToolbar: () => void;
+  // Firebase Auth & Cloud Firestore Integration
+  firebaseUser: any;
+  loginWithGoogle: () => Promise<void>;
+  logoutFirebase: () => Promise<void>;
+  cloudSyncStatus: 'idle' | 'syncing' | 'synced' | 'error';
+  lastCloudSyncTime?: string;
+  syncToCloudFirestore: () => Promise<void>;
+  loadFromCloudFirestore: () => Promise<void>;
+  // Pengaturan Ukuran Huruf & Size Huruf (UI & Cetak)
+  uiFontSize: UiFontSize;
+  setUiFontSize: (size: UiFontSize) => void;
+  uiFontScalePercent: number;
+  setUiFontScalePercent: (percent: number) => void;
+  uiFontFamily: UiFontFamily;
+  setUiFontFamily: (family: UiFontFamily) => void;
+  // Pengaturan Kertas Rapor (Paper Size, Orientation, Margin)
+  paperSize: PaperSize;
+  setPaperSize: (size: PaperSize) => void;
+  paperOrientation: PaperOrientation;
+  setPaperOrientation: (orientation: PaperOrientation) => void;
+  paperMarginPreset: PaperMarginPreset;
+  setPaperMarginPreset: (preset: PaperMarginPreset) => void;
+  paperMargins: PrintMargins;
+  setPaperMargins: (margins: PrintMargins) => void;
+  // Pengaturan Print & Cetak Rapor
+  printColorMode: PrintColorMode;
+  setPrintColorMode: (mode: PrintColorMode) => void;
+  printShowKop: boolean;
+  setPrintShowKop: (show: boolean) => void;
+  printTableBorder: PrintTableBorder;
+  setPrintTableBorder: (border: PrintTableBorder) => void;
+  printPageNumbers: boolean;
+  setPrintPageNumbers: (show: boolean) => void;
+  triggerQuickPrint: () => void;
+  // Pengaturan Tema Aplikasi
+  themeAccent: ThemeAccent;
+  setThemeAccent: (accent: ThemeAccent) => void;
+  themeMode: ThemeMode;
+  setThemeMode: (mode: ThemeMode) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -192,6 +261,43 @@ export function getFaseFromKelas(kelas: ClassLevel | string): FaseType {
   if (kelas === 'XI' || kelas === 'XII' || kelas === 'XIII') return 'F';
   return 'B';
 }
+
+export const THEME_ACCENT_MAP: Record<ThemeAccent, { name: string; primary: string; hover: string; ring: string; lightBg: string; text: string }> = {
+  emerald: { name: 'Hijau Papua (Emerald)', primary: '#059669', hover: '#047857', ring: '#a7f3d0', lightBg: '#ecfdf5', text: '#065f46' },
+  blue: { name: 'Biru Bahari (Sky Blue)', primary: '#2563eb', hover: '#1d4ed8', ring: '#bfdbfe', lightBg: '#eff6ff', text: '#1e40af' },
+  indigo: { name: 'Royal Indigo (Resmi)', primary: '#4f46e5', hover: '#4338ca', ring: '#c7d2fe', lightBg: '#eef2ff', text: '#3730a3' },
+  slate: { name: 'Slate Modern (Elegan)', primary: '#475569', hover: '#334155', ring: '#cbd5e1', lightBg: '#f8fafc', text: '#1e293b' },
+  violet: { name: 'Ungu Lembayung (Violet)', primary: '#7c3aed', hover: '#6d28d9', ring: '#ddd6fe', lightBg: '#f5f3ff', text: '#5b21b6' },
+  amber: { name: 'Kuning Marigold (Hangat)', primary: '#d97706', hover: '#b45309', ring: '#fde68a', lightBg: '#fffbeb', text: '#92400e' },
+  rose: { name: 'Merah Delima (Tegas)', primary: '#e11d48', hover: '#be123c', ring: '#fecdd3', lightBg: '#fff1f2', text: '#9f1239' },
+};
+
+export const PAPER_SIZE_MAP: Record<PaperSize, { name: string; widthMm: number; heightMm: number; description: string }> = {
+  F4: { name: 'F4 / Folio (Buku Rapor)', widthMm: 215, heightMm: 330, description: 'Standar utama dinas pendidikan & buku rapor Indonesia (215 x 330 mm)' },
+  A4: { name: 'A4 (Standar Internasional)', widthMm: 210, heightMm: 297, description: 'Standar dokumen umum kertas HVS A4 (210 x 297 mm)' },
+  Legal: { name: 'Legal (Panjang)', widthMm: 215.9, heightMm: 355.6, description: 'Kertas panjang untuk lembar ledger & tabel banyak (216 x 356 mm)' },
+  Letter: { name: 'Letter / Kuarto', widthMm: 215.9, heightMm: 279.4, description: 'Kertas lebar standar percetakan (216 x 279 mm)' },
+};
+
+export const MARGIN_PRESETS: Record<PaperMarginPreset, PrintMargins> = {
+  standar: { top: 20, bottom: 20, left: 25, right: 20 },
+  sempit: { top: 12, bottom: 12, left: 15, right: 12 },
+  kustom: { top: 20, bottom: 20, left: 25, right: 20 },
+};
+
+export const UI_FONT_SCALE_MAP: Record<UiFontSize, { scale: string; label: string; percent: number }> = {
+  small: { scale: '90%', label: 'Kecil Ringkas (90%)', percent: 90 },
+  normal: { scale: '100%', label: 'Standar Normal (100%)', percent: 100 },
+  large: { scale: '110%', label: 'Besar Jelas (110%)', percent: 110 },
+  xlarge: { scale: '120%', label: 'Ekstra Besar (120%)', percent: 120 },
+};
+
+export const UI_FONT_FAMILY_MAP: Record<UiFontFamily, { name: string; css: string; description: string }> = {
+  'plus-jakarta': { name: 'Plus Jakarta Sans', css: '"Plus Jakarta Sans", system-ui, sans-serif', description: 'Modern, proporsional dan sangat mudah dibaca' },
+  'outfit': { name: 'Outfit Sans', css: '"Outfit", system-ui, sans-serif', description: 'Bersih, ramah untuk tampilan aplikasi pendidikan' },
+  'dm-sans': { name: 'DM Sans', css: '"DM Sans", system-ui, sans-serif', description: 'Elegan seimbang untuk angka dan tabel nilai' },
+  'system': { name: 'System Default UI', css: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', description: 'Font bawaan sistem operasi PC/Laptop' },
+};
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [db, setDb] = useState<DatabaseState>(() => {
@@ -383,6 +489,103 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setActionToolbarMode('hidden');
     } else {
       setActionToolbarMode('full');
+    }
+  };
+
+  // Firebase User & Cloud Firestore Sync States
+  const [firebaseUser, setFirebaseUser] = useState<any>(null);
+  const [cloudSyncStatus, setCloudSyncStatus] = useState<'idle' | 'syncing' | 'synced' | 'error'>('idle');
+  const [lastCloudSyncTime, setLastCloudSyncTime] = useState<string | undefined>(undefined);
+
+  // Test Firestore connection on boot
+  useEffect(() => {
+    testFirestoreConnection().catch((err) => {
+      console.warn('Firebase init check note:', err);
+    });
+
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      setFirebaseUser(user);
+      if (user) {
+        // Also associate current user if not already set
+        setCurrentUser((curr) => {
+          if (!curr) {
+            return {
+              username: user.email?.split('@')[0] || 'User',
+              password: '',
+              namaLengkap: user.displayName || user.email || 'Guru Balil',
+              role: 'Wali Kelas',
+              nip: '-',
+              createdAt: new Date().toISOString().slice(0, 10)
+            };
+          }
+          return curr;
+        });
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const loginWithGoogle = async () => {
+    try {
+      const u = await signInWithGoogle();
+      setFirebaseUser(u);
+      showSaveNotification(`Berhasil masuk via Google Firebase: ${u.displayName || u.email}!`);
+    } catch (err: any) {
+      console.error('Google Sign-in failed:', err);
+      showSaveNotification('Gagal masuk dengan akun Google.');
+      throw err;
+    }
+  };
+
+  const logoutFirebase = async () => {
+    try {
+      await signOutFirebase();
+      setFirebaseUser(null);
+      showSaveNotification('Berhasil keluar dari sesi Firebase.');
+    } catch (err: any) {
+      console.error('Sign-out failed:', err);
+    }
+  };
+
+  const syncToCloudFirestore = async () => {
+    setCloudSyncStatus('syncing');
+    try {
+      const res = await saveStateToFirestore(db, firebaseUser?.email || currentUser?.namaLengkap);
+      setCloudSyncStatus('synced');
+      const now = new Date();
+      const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(
+        now.getMinutes()
+      ).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+      setLastCloudSyncTime(timeStr);
+      showSaveNotification(res.message);
+      setTimeout(() => setCloudSyncStatus('idle'), 4000);
+    } catch (err: any) {
+      setCloudSyncStatus('error');
+      showSaveNotification('Gagal menyinkronkan data ke Cloud Firebase Firestore.');
+      setTimeout(() => setCloudSyncStatus('idle'), 4000);
+      throw err;
+    }
+  };
+
+  const loadFromCloudFirestore = async () => {
+    setCloudSyncStatus('syncing');
+    try {
+      const res = await loadStateFromFirestore();
+      if (res.success && res.data) {
+        setDb(res.data);
+        setCloudSyncStatus('synced');
+        showSaveNotification(res.message);
+      } else {
+        setCloudSyncStatus('idle');
+        showSaveNotification(res.message);
+      }
+      setTimeout(() => setCloudSyncStatus('idle'), 4000);
+    } catch (err: any) {
+      setCloudSyncStatus('error');
+      showSaveNotification('Gagal memuat data dari Cloud Firebase.');
+      setTimeout(() => setCloudSyncStatus('idle'), 4000);
+      throw err;
     }
   };
 
@@ -678,6 +881,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     showSaveNotification('Data berhasil disimpan dengan aman ke sistem!');
   };
 
+  const bulkSaveKelas = (kelasList: ClassData[]) => {
+    if (!kelasList || kelasList.length === 0) return;
+    mutateDb((prev) => {
+      const copy = [...prev.kelas];
+      kelasList.forEach((k) => {
+        const idx = copy.findIndex((item) => item.namaKelas === k.namaKelas || item.idKelas === k.idKelas);
+        if (idx >= 0) copy[idx] = { ...copy[idx], ...k };
+        else copy.push(k);
+      });
+      return { ...prev, kelas: copy };
+    });
+    showSaveNotification(`${kelasList.length} data rombel kelas berhasil disimpan ke sistem!`);
+  };
+
   const deleteKelas = (idKelas: string) => {
     mutateDb((prev) => ({
       ...prev,
@@ -753,6 +970,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return { ...prev, tujuanPembelajaran: [...prev.tujuanPembelajaran, tp] };
     });
     showSaveNotification('Data berhasil disimpan dengan aman ke sistem!');
+  };
+
+  const bulkSaveTujuanPembelajaran = (tpList: LearningObjective[]) => {
+    if (!tpList || tpList.length === 0) return;
+    mutateDb((prev) => {
+      const copy = [...prev.tujuanPembelajaran];
+      tpList.forEach((tp) => {
+        const idx = copy.findIndex(
+          (t) =>
+            t.id === tp.id ||
+            (t.kodeTp === tp.kodeTp && t.mataPelajaran === tp.mataPelajaran && t.kelas === tp.kelas)
+        );
+        if (idx >= 0) copy[idx] = { ...copy[idx], ...tp };
+        else copy.push(tp);
+      });
+      return { ...prev, tujuanPembelajaran: copy };
+    });
+    showSaveNotification(`${tpList.length} Tujuan Pembelajaran (TP) berhasil disimpan & dihubungkan ke rapor!`);
   };
 
   const deleteTP = (id: string) => {
@@ -949,6 +1184,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     showSaveNotification('Data berhasil disimpan dengan aman ke sistem!');
   };
 
+  const bulkSaveEkskul = (ekskulList: Extracurricular[]) => {
+    if (!ekskulList || ekskulList.length === 0) return;
+    mutateDb((prev) => {
+      const copy = [...prev.ekstrakurikuler];
+      ekskulList.forEach((e) => {
+        const idx = copy.findIndex(
+          (item) => item.id === e.id || (item.nisn === e.nisn && item.jenisEkstrakurikuler === e.jenisEkstrakurikuler && item.semester === e.semester)
+        );
+        if (idx >= 0) copy[idx] = { ...copy[idx], ...e };
+        else copy.push(e);
+      });
+      return { ...prev, ekstrakurikuler: copy };
+    });
+    showSaveNotification(`${ekskulList.length} data kegiatan ekstrakurikuler berhasil disimpan ke sistem!`);
+  };
+
   const deleteEkskul = (id: string) => {
     mutateDb((prev) => ({
       ...prev,
@@ -971,6 +1222,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     showSaveNotification('Data berhasil disimpan dengan aman ke sistem!');
   };
 
+  const bulkSaveKehadiran = (kehadiranList: Attendance[]) => {
+    if (!kehadiranList || kehadiranList.length === 0) return;
+    mutateDb((prev) => {
+      const copy = [...prev.kehadiran];
+      kehadiranList.forEach((att) => {
+        const idx = copy.findIndex(
+          (h) => h.id === att.id || (h.nisn === att.nisn && h.semester === att.semester)
+        );
+        if (idx >= 0) copy[idx] = { ...copy[idx], ...att };
+        else copy.push(att);
+      });
+      return { ...prev, kehadiran: copy };
+    });
+    showSaveNotification(`Data presensi kehadiran untuk ${kehadiranList.length} siswa berhasil disimpan!`);
+  };
+
   const saveCatatanWali = (catatan: TeacherNote) => {
     mutateDb((prev) => {
       const idx = prev.catatanWali.findIndex(
@@ -986,6 +1253,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     showSaveNotification('Data berhasil disimpan dengan aman ke sistem!');
   };
 
+  const bulkSaveCatatanWali = (catatanList: TeacherNote[]) => {
+    if (!catatanList || catatanList.length === 0) return;
+    mutateDb((prev) => {
+      const copy = [...prev.catatanWali];
+      catatanList.forEach((c) => {
+        const idx = copy.findIndex(
+          (item) => item.id === c.id || (item.nisn === c.nisn && item.semester === c.semester)
+        );
+        if (idx >= 0) copy[idx] = { ...copy[idx], ...c };
+        else copy.push(c);
+      });
+      return { ...prev, catatanWali: copy };
+    });
+    showSaveNotification(`Catatan wali kelas untuk ${catatanList.length} siswa berhasil disimpan!`);
+  };
+
   const saveP5Projek = (projek: P5Project) => {
     mutateDb((prev) => {
       const idx = prev.p5Projek.findIndex((p) => p.idProjek === projek.idProjek);
@@ -997,6 +1280,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return { ...prev, p5Projek: [...prev.p5Projek, projek] };
     });
     showSaveNotification('Data berhasil disimpan dengan aman ke sistem!');
+  };
+
+  const bulkSaveP5Projek = (projekList: P5Project[]) => {
+    if (!projekList || projekList.length === 0) return;
+    mutateDb((prev) => {
+      const copy = [...prev.p5Projek];
+      projekList.forEach((p) => {
+        const idx = copy.findIndex((item) => item.idProjek === p.idProjek || item.namaProjek === p.namaProjek);
+        if (idx >= 0) copy[idx] = { ...copy[idx], ...p };
+        else copy.push(p);
+      });
+      return { ...prev, p5Projek: copy };
+    });
+    showSaveNotification(`${projekList.length} data Projek P5 berhasil disimpan!`);
   };
 
   const deleteP5Projek = (id: string) => {
@@ -1019,6 +1316,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     showSaveNotification('Data berhasil disimpan dengan aman ke sistem!');
   };
 
+  const bulkSaveP5Tahapan = (tahapList: P5Stage[]) => {
+    if (!tahapList || tahapList.length === 0) return;
+    mutateDb((prev) => {
+      const copy = [...prev.p5Tahapan];
+      tahapList.forEach((t) => {
+        const idx = copy.findIndex((item) => item.id === t.id);
+        if (idx >= 0) copy[idx] = { ...copy[idx], ...t };
+        else copy.push(t);
+      });
+      return { ...prev, p5Tahapan: copy };
+    });
+    showSaveNotification(`${tahapList.length} tahapan alur Projek P5 berhasil disimpan!`);
+  };
+
   const deleteP5Tahapan = (id: string) => {
     mutateDb((prev) => ({
       ...prev,
@@ -1037,6 +1348,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return { ...prev, p5Dimensi: [...prev.p5Dimensi, dim] };
     });
     showSaveNotification('Data berhasil disimpan dengan aman ke sistem!');
+  };
+
+  const bulkSaveP5Dimensi = (dimensiList: P5DimensionItem[]) => {
+    if (!dimensiList || dimensiList.length === 0) return;
+    mutateDb((prev) => {
+      const copy = [...prev.p5Dimensi];
+      dimensiList.forEach((d) => {
+        const idx = copy.findIndex((item) => item.id === d.id || (item.dimensi === d.dimensi && item.elemen === d.elemen && item.subElemen === d.subElemen));
+        if (idx >= 0) copy[idx] = { ...copy[idx], ...d };
+        else copy.push(d);
+      });
+      return { ...prev, p5Dimensi: copy };
+    });
+    showSaveNotification(`${dimensiList.length} dimensi & elemen P5 berhasil disimpan!`);
   };
 
   const deleteP5Dimensi = (id: string) => {
@@ -1076,7 +1401,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
       return { ...prev, p5Nilai: nextScores };
     });
-    showSaveNotification('Teleb Kan Data sekmarima sirya Dibmar');
+    showSaveNotification('Data Nilai P5 Projek berhasil disimpan ke sistem!');
   };
 
   const exportDatabaseJson = () => {
@@ -1114,6 +1439,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return { ...prev, piagam: [...currentList, piagam] };
     });
     showSaveNotification('Piagam Penghargaan berhasil disimpan!');
+  };
+
+  const bulkSavePiagam = (piagamList: PiagamAward[]) => {
+    if (!piagamList || piagamList.length === 0) return;
+    mutateDb((prev) => {
+      const currentList = [...(prev.piagam || [])];
+      piagamList.forEach((piagam) => {
+        const idx = currentList.findIndex((p) => p.idPiagam === piagam.idPiagam || (p.nisn === piagam.nisn && p.judulPenghargaan === piagam.judulPenghargaan));
+        if (idx >= 0) currentList[idx] = { ...currentList[idx], ...piagam };
+        else currentList.push(piagam);
+      });
+      return { ...prev, piagam: currentList };
+    });
+    showSaveNotification(`${piagamList.length} data piagam penghargaan siswa berhasil disimpan!`);
   };
 
   const deletePiagam = (idPiagam: string) => {
@@ -1187,23 +1526,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         syncAllStudentConnections,
         deleteSiswa,
         saveKelas,
+        bulkSaveKelas,
         deleteKelas,
         saveMataPelajaran,
         bulkSaveMataPelajaran,
         deleteMataPelajaran,
         saveTP,
+        bulkSaveTujuanPembelajaran,
         deleteTP,
         saveNilaiAkademik,
         bulkSaveNilai,
         saveEkskul,
+        bulkSaveEkskul,
         deleteEkskul,
         saveKehadiran,
+        bulkSaveKehadiran,
         saveCatatanWali,
+        bulkSaveCatatanWali,
         saveP5Projek,
+        bulkSaveP5Projek,
         deleteP5Projek,
         saveP5Tahapan,
+        bulkSaveP5Tahapan,
         deleteP5Tahapan,
         saveP5Dimensi,
+        bulkSaveP5Dimensi,
         deleteP5Dimensi,
         saveP5Nilai,
         bulkSaveP5Nilai,
@@ -1215,6 +1562,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         printMode,
         setPrintMode,
         savePiagam,
+        bulkSavePiagam,
         deletePiagam,
         saveKeputusanSiswa,
         bulkSaveKeputusanSiswa,
@@ -1264,7 +1612,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         // Mode Tombol Aksi
         actionToolbarMode,
         setActionToolbarMode,
-        toggleActionToolbar
+        toggleActionToolbar,
+        // Firebase Auth & Cloud Firestore
+        firebaseUser,
+        loginWithGoogle,
+        logoutFirebase,
+        cloudSyncStatus,
+        lastCloudSyncTime,
+        syncToCloudFirestore,
+        loadFromCloudFirestore
       }}
     >
       {children}

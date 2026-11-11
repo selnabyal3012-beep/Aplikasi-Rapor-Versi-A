@@ -24,6 +24,7 @@ import { ClassLevel, SemesterType } from '../../types';
 import { LogoKabupaten, LogoTutWuriHandayani } from '../common/OfficialLogos';
 import { StandardActionToolbar } from '../common/StandardActionToolbar';
 import * as XLSX from 'xlsx';
+import { parseAndImportTemplate } from '../../utils/templateImporter';
 
 type CertificateTheme = 'gold' | 'navy' | 'emerald';
 
@@ -81,6 +82,7 @@ const AWARD_PRESETS: AwardOption[] = [
 ];
 
 export const PiagamSection: React.FC = () => {
+  const appContext = useApp();
   const {
     db,
     selectedKelas,
@@ -90,7 +92,7 @@ export const PiagamSection: React.FC = () => {
     updateSekolah,
     setActiveMenu,
     showSaveNotification
-  } = useApp();
+  } = appContext;
 
   const studentsInClass = db.siswa.filter(
     (s) => s.kelas === selectedKelas && s.statusSiswa === 'Aktif'
@@ -277,7 +279,18 @@ export const PiagamSection: React.FC = () => {
             setCustomDescription('');
           }}
           deleteLabel="Bersihkan Teks"
-          onImport={(file) => showSaveNotification(`File piagam "${file.name}" berhasil diimpor!`)}
+          onImport={async (file) => {
+            try {
+              const res = await parseAndImportTemplate(file, 'template_piagam', appContext);
+              if (res.success) {
+                showSaveNotification(res.message);
+              } else {
+                alert(res.message);
+              }
+            } catch (err: any) {
+              alert('Gagal mengimpor file piagam: ' + (err?.message || 'Format tidak valid'));
+            }
+          }}
           importLabel="Impor Data"
           onExport={() => {
             const wb = XLSX.utils.book_new();

@@ -352,3 +352,21 @@ export function getNextClass(current: ClassLevel | string): string {
 }
 
 export type ActionToolbarMode = 'full' | 'compact' | 'hidden';
+
+// Pengaturan Huruf, Kertas, Print, & Tema
+export type ThemeAccent = 'emerald' | 'blue' | 'indigo' | 'slate' | 'violet' | 'amber' | 'rose';
+export type ThemeMode = 'light' | 'dark' | 'auto';
+export type UiFontSize = 'small' | 'normal' | 'large' | 'xlarge';
+export type UiFontFamily = 'system' | 'plus-jakarta' | 'outfit' | 'dm-sans';
+export type PaperSize = 'F4' | 'A4' | 'Legal' | 'Letter';
+export type PaperOrientation = 'portrait' | 'landscape';
+export type PaperMarginPreset = 'standar' | 'sempit' | 'kustom';
+export type PrintColorMode = 'color' | 'grayscale';
+export type PrintTableBorder = 'solid' | 'subtle';
+
+export interface PrintMargins {
+  top: number;
+  bottom: number;
+  left: number;
+  right: number;
+}

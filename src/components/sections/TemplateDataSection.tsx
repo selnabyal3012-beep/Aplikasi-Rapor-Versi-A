@@ -29,13 +29,18 @@ import {
   RefreshCw,
   BookOpen,
   SlidersHorizontal,
-  UserCheck
+  UserCheck,
+  Upload,
+  FileUp,
+  AlertCircle,
+  ArrowRight
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { ClassLevel } from '../../types';
-import { useApp } from '../../context/AppContext';
+import { useApp, MenuKey } from '../../context/AppContext';
 import { generateReportDescriptionFromTP } from '../../utils/tpDescriptionHelper';
 import { StandardActionToolbar } from '../common/StandardActionToolbar';
+import { parseAndImportTemplate, ImportResult } from '../../utils/templateImporter';
 
 interface TemplateItem {
   id: string;
@@ -50,10 +55,104 @@ interface TemplateItem {
 }
 
 export const TemplateDataSection: React.FC = () => {
-  const { db, showSaveNotification } = useApp();
+  const appContext = useApp();
+  const { db, showSaveNotification, setActiveMenu } = appContext;
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('SEMUA');
   const [previewTemplate, setPreviewTemplate] = useState<TemplateItem | null>(null);
+  const [importResultModal, setImportResultModal] = useState<ImportResult | null>(null);
+  const [isImporting, setIsImporting] = useState<boolean>(false);
+
+  const getDestinationMenuKey = (templateId: string): MenuKey => {
+    switch (templateId) {
+      case 'template_siswa':
+      case 'template_identitas_siswa':
+      case 'template_rapor_peserta_didik':
+        return 'data_siswa';
+      case 'template_guru':
+        return 'data_guru';
+      case 'template_mapel':
+        return 'mata_pelajaran';
+      case 'template_kkm':
+        return 'kkm_pelajaran';
+      case 'template_kelas':
+        return 'data_kelas';
+      case 'template_tp':
+        return 'tujuan_pembelajaran';
+      case 'template_nilai':
+      case 'template_nilai_akademik':
+      case 'template_nilai_pts':
+        return 'input_nilai';
+      case 'template_deskripsi_rapor':
+        return 'deskripsi_rapor';
+      case 'template_rekap_nilai':
+        return 'rekap_nilai';
+      case 'template_kehadiran':
+        return 'kehadiran';
+      case 'template_ekskul':
+        return 'ekstrakurikuler';
+      case 'template_catatan_wali':
+        return 'catatan_wali';
+      case 'template_piagam':
+        return 'piagam';
+      case 'template_p5':
+        return 'p5_projek';
+      case 'template_p5_tahapan':
+        return 'p5_tahapan';
+      case 'template_p5_dimensi':
+        return 'p5_dimensi';
+      case 'template_p5_nilai':
+        return 'p5_nilai';
+      case 'template_sekolah':
+        return 'identitas_sekolah';
+      case 'template_rapor_akhir':
+        return 'rapor_akademik';
+      default:
+        return 'dashboard';
+    }
+  };
+
+  const handleImportSpecificTemplate = async (templateId: string, file: File) => {
+    setIsImporting(true);
+    try {
+      const result = await parseAndImportTemplate(file, templateId, appContext);
+      setImportResultModal(result);
+      if (result.success) {
+        showSaveNotification(result.message);
+      }
+    } catch (err: any) {
+      setImportResultModal({
+        success: false,
+        templateId,
+        templateName: 'Gagal Memproses File',
+        importedCount: 0,
+        message: err?.message || 'Gagal memproses file template.'
+      });
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  const handleImportUniversal = async (file: File) => {
+    setIsImporting(true);
+    try {
+      const result = await parseAndImportTemplate(file, undefined, appContext);
+      setImportResultModal(result);
+      if (result.success) {
+        showSaveNotification(result.message);
+      }
+    } catch (err: any) {
+      setImportResultModal({
+        success: false,
+        templateId: 'auto',
+        templateName: 'Gagal Memproses File',
+        importedCount: 0,
+        message: err?.message || 'Gagal memproses file template.'
+      });
+    } finally {
+      setIsImporting(false);
+    }
+  };
 
   // Mode Sinkronisasi Data Riil Database vs Format Kosong Standar
   // Ketika aktif, setiap data siswa/guru/nilai/TP riil di sekolah diikutsertakan otomatis ke template
@@ -1638,16 +1737,64 @@ export const TemplateDataSection: React.FC = () => {
         cancelLabel="Batal / Reset Filter"
         onDelete={() => {}}
         deleteLabel="Bersihkan Pilihan"
-        onImport={(file) => showSaveNotification(`File "${file.name}" berhasil diunggah untuk pratinjau!`)}
-        importLabel="Impor File Contoh"
+        onImport={handleImportUniversal}
+        importLabel="Impor File Template (.xlsx / .csv)"
         onExport={downloadAllExcel}
         exportLabel="Expor Semua (.xlsx)"
-        onUpload={(file) => showSaveNotification(`Berkas template "${file.name}" tersimpan!`)}
-        uploadLabel="Upload Template"
+        onUpload={handleImportUniversal}
+        uploadLabel="Upload & Masukkan File"
         onClear={() => setSelectedCategory('SEMUA')}
         clearLabel="Bersihkan Filter"
         templateLabel="Format Standar"
       />
+
+      {/* PUSAT UNGGAH & IMPOR FILE TEMPLATE (DETEKSI OTOMATIS) */}
+      <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 rounded-3xl p-6 sm:p-7 text-white shadow-xl border border-blue-700/50 relative overflow-hidden">
+        <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-radial from-blue-500/10 to-transparent pointer-events-none" />
+        <div className="flex flex-wrap items-center justify-between gap-6 relative z-10">
+          <div className="space-y-2 max-w-2xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-300 text-xs font-bold tracking-wide">
+              <FileUp size={14} className="text-emerald-400" />
+              <span>Universal Importer & Auto-Detection</span>
+            </div>
+            <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+              Pusat Impor Berkas Template Sekolah
+            </h3>
+            <p className="text-xs sm:text-sm text-blue-100/90 leading-relaxed">
+              Unggah file Excel (<strong>.xlsx</strong>) atau <strong>.csv</strong> hasil unduhan template yang telah Anda isi.
+              Sistem akan <strong>mendeteksi secara otomatis</strong> jenis template (Siswa, Guru, Mapel, KKM, TP, Nilai, Kehadiran, Catatan, P5, Piagam) dan langsung menyimpannya ke database sekolah tanpa batasan baris.
+            </p>
+            <div className="flex flex-wrap items-center gap-3 pt-1 text-[11px] text-blue-200">
+              <span className="flex items-center gap-1.5"><CheckCircle2 size={13} className="text-emerald-400" /> Otomatis Hubungkan Relasi Antar Data</span>
+              <span className="flex items-center gap-1.5"><CheckCircle2 size={13} className="text-emerald-400" /> Aman untuk Format Excel & WPS Laptop</span>
+              <span className="flex items-center gap-1.5"><CheckCircle2 size={13} className="text-emerald-400" /> 100% Offline Tanpa Internet</span>
+            </div>
+          </div>
+
+          <div className="flex flex-col items-center sm:items-end gap-3 w-full sm:w-auto">
+            <label className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-6 py-3.5 bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white font-black text-sm rounded-2xl shadow-lg hover:shadow-emerald-500/25 transition-all cursor-pointer transform hover:-translate-y-0.5">
+              <Upload size={18} />
+              <span>{isImporting ? 'Memproses Berkas...' : 'Pilih & Impor Berkas Excel (.xlsx / .csv)'}</span>
+              <input
+                type="file"
+                accept=".xlsx,.xls,.csv"
+                disabled={isImporting}
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) {
+                    handleImportUniversal(f);
+                    e.target.value = '';
+                  }
+                }}
+              />
+            </label>
+            <span className="text-[10px] text-blue-300 font-medium">
+              Mendukung semua 18 template resmi Kurikulum Merdeka
+            </span>
+          </div>
+        </div>
+      </div>
 
       {/* GENERATOR TEMPLATE KHUSUS MASING-MASING MATA PELAJARAN (TP, NILAI, & RAPOR) */}
       <div className="bg-white rounded-3xl p-6 border-2 border-emerald-500/30 shadow-md space-y-4">
@@ -1896,29 +2043,50 @@ export const TemplateDataSection: React.FC = () => {
 
               {/* Action Buttons */}
               <div className="pt-4 border-t border-slate-100 mt-4 space-y-2">
-                {/* Tombol Utama: Unduh Tabel Excel .XLSX Rapi */}
+                {/* 1. Tombol Unduh / Expor Excel .XLSX */}
                 <button
                   onClick={() => downloadExcel(item, useActiveData)}
-                  className="w-full inline-flex items-center justify-center gap-2 py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs shadow-xs transition-colors cursor-pointer"
+                  className="w-full inline-flex items-center justify-center gap-2 py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs shadow-xs transition-colors cursor-pointer"
                   title={useActiveData ? 'Unduh Tabel Excel (.xlsx) dengan data sekolah saat ini' : 'Unduh Tabel Excel (.xlsx) format blangko kosong'}
                 >
                   <FileSpreadsheet size={15} />
                   <span>
                     {useActiveData
-                      ? `Unduh Excel (.xlsx) [Sinkron Data Aktif]`
-                      : 'Unduh Tabel Excel (.xlsx) Blangko'}
+                      ? `Unduh Excel (.xlsx) [Data Aktif]`
+                      : 'Unduh Excel (.xlsx) Blangko'}
                   </span>
                 </button>
+
+                {/* 2. Tombol Impor / Upload File Template Ini */}
+                <label className="w-full inline-flex items-center justify-center gap-2 py-2 px-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-xs shadow-xs transition-all cursor-pointer hover:shadow-md">
+                  <Upload size={14} />
+                  <span>Impor File Template Ini (.xlsx/.csv)</span>
+                  <input
+                    type="file"
+                    accept=".xlsx,.xls,.csv"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) {
+                        handleImportSpecificTemplate(item.id, f);
+                        e.target.value = '';
+                      }
+                    }}
+                  />
+                </label>
 
                 {/* Opsi Cepat Unduh Alternatif */}
                 <div className="flex items-center justify-between text-[10px] px-1">
                   <button
                     type="button"
                     onClick={() => downloadExcel(item, !useActiveData)}
-                    className="text-blue-700 hover:text-blue-900 hover:underline font-bold cursor-pointer"
+                    className="text-slate-600 hover:text-blue-900 hover:underline font-bold cursor-pointer"
                   >
-                    ↳ Unduh {useActiveData ? 'Format Blangko Kosong' : 'Dengan Data Riil Sekolah'}
+                    ↳ Unduh {useActiveData ? 'Format Blangko' : 'Dengan Data Riil'}
                   </button>
+                  <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                    Siap Impor & Expor
+                  </span>
                 </div>
 
                 {/* Tombol Sekunder: Lihat Pratinjau, CSV, dan Salin */}
@@ -2131,6 +2299,62 @@ export const TemplateDataSection: React.FC = () => {
                   <span>Unduh Tabel Excel (.xlsx) Standar Rapi</span>
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL HASIL IMPOR FILE TEMPLATE */}
+      {importResultModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-200 p-6 space-y-5">
+            <div className="text-center space-y-3">
+              <div
+                className={`w-16 h-16 mx-auto rounded-2xl flex items-center justify-center ${
+                  importResultModal.success ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'
+                }`}
+              >
+                {importResultModal.success ? <CheckCircle2 size={36} /> : <AlertCircle size={36} />}
+              </div>
+              <div>
+                <span className={`text-[11px] font-black uppercase tracking-wider ${importResultModal.success ? 'text-emerald-700' : 'text-rose-700'}`}>
+                  {importResultModal.success ? 'Impor Berhasil Masuk Database' : 'Gagal Mengimpor File'}
+                </span>
+                <h3 className="text-lg font-black text-slate-900 mt-0.5">
+                  {importResultModal.templateName}
+                </h3>
+              </div>
+              <p className="text-xs text-slate-600 leading-relaxed bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
+                {importResultModal.message}
+              </p>
+              {importResultModal.success && importResultModal.importedCount > 0 && (
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold">
+                  <span>Total Data Masuk:</span>
+                  <span className="font-mono text-sm font-extrabold">{importResultModal.importedCount} Data</span>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-2 pt-2">
+              {importResultModal.success && (
+                <button
+                  onClick={() => {
+                    const dest = getDestinationMenuKey(importResultModal.templateId);
+                    setImportResultModal(null);
+                    setActiveMenu(dest);
+                  }}
+                  className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-xl font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <span>Buka Menu {importResultModal.templateName}</span>
+                  <ArrowRight size={14} />
+                </button>
+              )}
+              <button
+                onClick={() => setImportResultModal(null)}
+                className="w-full py-2.5 px-4 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 rounded-xl font-bold text-xs transition-colors cursor-pointer"
+              >
+                Tutup & Lanjut Impor/Expor Lainnya
+              </button>
             </div>
           </div>
         </div>

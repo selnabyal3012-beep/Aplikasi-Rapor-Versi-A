@@ -4,9 +4,11 @@ import { useApp } from '../../context/AppContext';
 import { Extracurricular } from '../../types';
 import { StandardActionToolbar } from '../common/StandardActionToolbar';
 import * as XLSX from 'xlsx';
+import { parseAndImportTemplate } from '../../utils/templateImporter';
 
 export const ExtracurricularSection: React.FC = () => {
-  const { db, selectedKelas, selectedSemester, saveEkskul, deleteEkskul, setActiveMenu } = useApp();
+  const appContext = useApp();
+  const { db, selectedKelas, selectedSemester, saveEkskul, deleteEkskul, showSaveNotification, setActiveMenu } = appContext;
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Extracurricular | null>(null);
 
@@ -88,33 +90,15 @@ export const ExtracurricularSection: React.FC = () => {
 
   const handleImportFile = async (file: File) => {
     try {
-      const buffer = await file.arrayBuffer();
-      const wb = XLSX.read(buffer, { type: 'array' });
-      const firstSheet = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json<string[]>(firstSheet, { header: 1 });
-      rows.slice(7).forEach((row, i) => {
-        if (!row || !row[1]) return;
-        const nisn = String(row[1]).trim();
-        const nama = String(row[2] || '');
-        const jenis = String(row[3] || 'Pramuka Siaga/Penggalang');
-        const predikat = (row[4] || 'Baik') as any;
-        const ket = String(row[5] || '');
-        if (nisn) {
-          saveEkskul({
-            id: `E00${db.ekstrakurikuler.length + i + 1}`,
-            nisn,
-            namaSiswa: nama,
-            kelas: selectedKelas,
-            semester: selectedSemester,
-            tahunPelajaran: db.sekolah.tahunPelajaran,
-            jenisEkstrakurikuler: jenis,
-            predikat,
-            keterangan: ket
-          });
-        }
-      });
-    } catch {
-      // handled
+      const result = await parseAndImportTemplate(file, 'template_ekskul', appContext);
+      if (result.success) {
+        showSaveNotification(result.message);
+      } else {
+        alert(result.message);
+      }
+    } catch (e: any) {
+      console.error(e);
+      alert('Gagal mengimpor file: ' + (e?.message || 'Format tidak sesuai'));
     }
   };
 

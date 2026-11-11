@@ -6,9 +6,11 @@ import { StandardActionToolbar } from '../common/StandardActionToolbar';
 import { SaveStatusIndicator } from '../common/SaveStatusIndicator';
 import { useSaveFeedback } from '../../hooks/useSaveFeedback';
 import * as XLSX from 'xlsx';
+import { parseAndImportTemplate } from '../../utils/templateImporter';
 
 export const TeacherNoteSection: React.FC = () => {
-  const { db, selectedKelas, selectedSemester, saveCatatanWali, setActiveMenu } = useApp();
+  const appContext = useApp();
+  const { db, selectedKelas, selectedSemester, saveCatatanWali, showSaveNotification, setActiveMenu } = appContext;
   const { status: saveStatus, triggerSave, lastSavedTime } = useSaveFeedback();
   const [savedNotice, setSavedNotice] = useState(false);
 
@@ -125,22 +127,30 @@ export const TeacherNoteSection: React.FC = () => {
 
   const handleImportFile = async (file: File) => {
     try {
-      const buffer = await file.arrayBuffer();
-      const wb = XLSX.read(buffer, { type: 'array' });
-      const firstSheet = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json<(string | number)[]>(firstSheet, { header: 1 });
-      const newNotes = { ...notes };
-      rows.forEach((row) => {
-        if (!row || row.length < 3) return;
-        const nisn = String(row[1] || '').trim();
-        const text = String(row[5] || row[2] || '').trim();
-        if (newNotes[nisn] && text) {
-          newNotes[nisn] = { ...newNotes[nisn], catatanWaliKelas: text };
-        }
-      });
-      setNotes(newNotes);
-    } catch {
-      // handled
+      const result = await parseAndImportTemplate(file, 'template_catatan_wali', appContext);
+      if (result.success) {
+        showSaveNotification(result.message);
+        setTimeout(() => {
+          setNotes((prev) => {
+            const next = { ...prev };
+            const currentList = appContext.db.catatanWali;
+            siswaKelas.forEach((s) => {
+              const matched = currentList.find(
+                (c) => c.nisn === s.nisn && c.semester === selectedSemester
+              );
+              if (matched) {
+                next[s.nisn] = { ...matched };
+              }
+            });
+            return next;
+          });
+        }, 100);
+      } else {
+        alert(result.message);
+      }
+    } catch (e: any) {
+      console.error(e);
+      alert('Gagal mengimpor file catatan wali: ' + (e?.message || 'Format tidak sesuai'));
     }
   };
 

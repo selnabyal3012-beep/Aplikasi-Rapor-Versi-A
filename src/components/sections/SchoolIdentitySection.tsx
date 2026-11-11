@@ -21,10 +21,12 @@ import { SchoolIdentity, ClassLevel, FaseType } from '../../types';
 import { StandardActionToolbar } from '../common/StandardActionToolbar';
 import { SaveStatusIndicator } from '../common/SaveStatusIndicator';
 import { useSaveFeedback } from '../../hooks/useSaveFeedback';
+import { parseAndImportTemplate } from '../../utils/templateImporter';
 import * as XLSX from 'xlsx';
 
 export const SchoolIdentitySection: React.FC = () => {
-  const { db, updateSekolah, setSelectedKelas, setSelectedFase, setSelectedSemester, setActiveMenu } = useApp();
+  const appContext = useApp();
+  const { db, updateSekolah, setSelectedKelas, setSelectedFase, setSelectedSemester, setActiveMenu, showSaveNotification } = appContext;
   const { status: saveStatus, triggerSave, lastSavedTime } = useSaveFeedback();
   const [formData, setFormData] = useState<SchoolIdentity>(() => ({
     ...db.sekolah,
@@ -150,25 +152,15 @@ export const SchoolIdentitySection: React.FC = () => {
 
   const handleImportFile = async (file: File) => {
     try {
-      const buffer = await file.arrayBuffer();
-      const wb = XLSX.read(buffer, { type: 'array' });
-      const firstSheet = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json<string[]>(firstSheet, { header: 1 });
-      const updated = { ...formData };
-      rows.forEach((row) => {
-        if (!row || row.length < 2) return;
-        const key = String(row[0]).toLowerCase();
-        const val = String(row[1]).trim();
-        if (key.includes('pemerintah')) updated.namaPemerintah = val;
-        else if (key.includes('instansi')) updated.namaInstansi = val;
-        else if (key.includes('sekolah') && !key.includes('kepala')) updated.namaSekolah = val;
-        else if (key.includes('npsn')) updated.npsn = val;
-        else if (key.includes('kepala') && !key.includes('nip')) updated.namaKepalaSekolah = val;
-        else if (key.includes('wali') && !key.includes('nip')) updated.waliKelas = val;
-      });
-      setFormData(updated);
-    } catch {
-      // handled
+      const result = await parseAndImportTemplate(file, 'template_sekolah', appContext);
+      if (result.success) {
+        showSaveNotification(result.message);
+        setFormData({ ...appContext.db.sekolah });
+      } else {
+        alert(result.message);
+      }
+    } catch (err: any) {
+      alert(`Gagal membaca file: ${err.message || 'Format tidak valid'}`);
     }
   };
 

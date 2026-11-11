@@ -6,9 +6,11 @@ import { StandardActionToolbar } from '../common/StandardActionToolbar';
 import { SaveStatusIndicator } from '../common/SaveStatusIndicator';
 import { useSaveFeedback } from '../../hooks/useSaveFeedback';
 import * as XLSX from 'xlsx';
+import { parseAndImportTemplate } from '../../utils/templateImporter';
 
 export const AttendanceSection: React.FC = () => {
-  const { db, selectedKelas, selectedSemester, saveKehadiran, setActiveMenu } = useApp();
+  const appContext = useApp();
+  const { db, selectedKelas, selectedSemester, saveKehadiran, showSaveNotification, setActiveMenu } = appContext;
   const { status: saveStatus, triggerSave, lastSavedTime } = useSaveFeedback();
   const [savedNotice, setSavedNotice] = useState(false);
 
@@ -104,49 +106,30 @@ export const AttendanceSection: React.FC = () => {
 
   const handleImportFile = async (file: File) => {
     try {
-      const buffer = await file.arrayBuffer();
-      const wb = XLSX.read(buffer, { type: 'array' });
-      const firstSheet = wb.Sheets[wb.SheetNames[0]];
-      const rowsJson = XLSX.utils.sheet_to_json<(string | number)[]>(firstSheet, { header: 1 });
-      let headerIdx = -1;
-      for (let i = 0; i < Math.min(rowsJson.length, 12); i++) {
-        const rowStr = (rowsJson[i] || []).join(' ').toLowerCase();
-        if (rowStr.includes('nisn') || rowStr.includes('nama') || rowStr.includes('sakit')) {
-          headerIdx = i;
-          break;
-        }
+      const result = await parseAndImportTemplate(file, 'template_kehadiran', appContext);
+      if (result.success) {
+        showSaveNotification(result.message);
+        setTimeout(() => {
+          setAttendances((prev) => {
+            const next = { ...prev };
+            const currentList = appContext.db.kehadiran;
+            siswaKelas.forEach((s) => {
+              const found = currentList.find(
+                (h) => h.nisn === s.nisn && h.semester === selectedSemester
+              );
+              if (found) {
+                next[s.nisn] = { ...found };
+              }
+            });
+            return next;
+          });
+        }, 100);
+      } else {
+        alert(result.message);
       }
-      if (headerIdx >= 0) {
-        const headers = rowsJson[headerIdx].map((h) => String(h || '').toLowerCase());
-        const nisnCol = headers.findIndex((h) => h.includes('nisn'));
-        const sCol = headers.findIndex((h) => h.includes('sakit'));
-        const iCol = headers.findIndex((h) => h.includes('izin'));
-        const aCol = headers.findIndex((h) => h.includes('alpa') || h.includes('tanpa'));
-
-        setAttendances((prev) => {
-          const next = { ...prev };
-          for (let r = headerIdx + 1; r < rowsJson.length; r++) {
-            const rowData = rowsJson[r];
-            if (!rowData || rowData.length === 0) continue;
-            const nisnVal = String(rowData[nisnCol] || '').trim();
-            if (nisnVal && next[nisnVal]) {
-              const sVal = sCol >= 0 ? Number(rowData[sCol]) || 0 : next[nisnVal].sakit;
-              const iVal = iCol >= 0 ? Number(rowData[iCol]) || 0 : next[nisnVal].izin;
-              const aVal = aCol >= 0 ? Number(rowData[aCol]) || 0 : next[nisnVal].alpa;
-              next[nisnVal] = {
-                ...next[nisnVal],
-                sakit: sVal,
-                izin: iVal,
-                alpa: aVal,
-                totalHari: sVal + iVal + aVal
-              };
-            }
-          }
-          return next;
-        });
-      }
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
+      alert('Gagal mengimpor file kehadiran: ' + (e?.message || 'Format tidak sesuai'));
     }
   };
 

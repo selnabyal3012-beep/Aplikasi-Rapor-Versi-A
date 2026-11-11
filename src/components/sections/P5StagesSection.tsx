@@ -4,9 +4,11 @@ import { useApp } from '../../context/AppContext';
 import { P5Stage } from '../../types';
 import { StandardActionToolbar } from '../common/StandardActionToolbar';
 import * as XLSX from 'xlsx';
+import { parseAndImportTemplate } from '../../utils/templateImporter';
 
 export const P5StagesSection: React.FC = () => {
-  const { db, saveP5Tahapan, deleteP5Tahapan, selectedKelas, setActiveMenu } = useApp();
+  const appContext = useApp();
+  const { db, saveP5Tahapan, deleteP5Tahapan, selectedKelas, showSaveNotification, setActiveMenu } = appContext;
   const [modalOpen, setModalOpen] = useState(false);
   const [editingTahap, setEditingTahap] = useState<P5Stage | null>(null);
 
@@ -81,27 +83,15 @@ export const P5StagesSection: React.FC = () => {
 
   const handleImportFile = async (file: File) => {
     try {
-      const buffer = await file.arrayBuffer();
-      const wb = XLSX.read(buffer, { type: 'array' });
-      const firstSheet = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json<string[]>(firstSheet, { header: 1 });
-      rows.slice(7).forEach((row, i) => {
-        if (!row || !row[3]) return;
-        const tahap = (row[2] || 'Pengenalan') as any;
-        const kegiatan = String(row[3]);
-        const tanggal = String(row[4] || '2026-08-01');
-        if (kegiatan) {
-          saveP5Tahapan({
-            id: `TPH00${db.p5Tahapan.length + i + 1}`,
-            idProjek: defaultProjekId,
-            tahap,
-            kegiatan,
-            tanggal
-          });
-        }
-      });
-    } catch {
-      // handled
+      const result = await parseAndImportTemplate(file, 'template_p5_tahapan', appContext);
+      if (result.success) {
+        showSaveNotification(result.message);
+      } else {
+        alert(result.message);
+      }
+    } catch (e: any) {
+      console.error(e);
+      alert('Gagal mengimpor file tahapan P5: ' + (e?.message || 'Format tidak sesuai'));
     }
   };
 

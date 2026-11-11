@@ -24,9 +24,11 @@ import { StandardActionToolbar } from '../common/StandardActionToolbar';
 import { SaveStatusIndicator } from '../common/SaveStatusIndicator';
 import { useSaveFeedback } from '../../hooks/useSaveFeedback';
 import * as XLSX from 'xlsx';
+import { parseAndImportTemplate } from '../../utils/templateImporter';
 
 export const KkmSection: React.FC = () => {
-  const { db, bulkSaveMataPelajaran, showSaveNotification, setActiveMenu } = useApp();
+  const appContext = useApp();
+  const { db, bulkSaveMataPelajaran, showSaveNotification, setActiveMenu } = appContext;
   const { status: saveStatus, triggerSave, lastSavedTime } = useSaveFeedback();
 
   const [search, setSearch] = useState('');
@@ -261,69 +263,24 @@ export const KkmSection: React.FC = () => {
   // Import from Excel
   const handleImportExcel = async (file: File) => {
     try {
-      const buffer = await file.arrayBuffer();
-      const wb = XLSX.read(buffer, { type: 'array' });
-      const firstSheet = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json<(string | number)[]>(firstSheet, { header: 1 });
-
-      let headerIdx = -1;
-      for (let i = 0; i < Math.min(rows.length, 25); i++) {
-        const rowStr = (rows[i] || []).join(' ').toLowerCase();
-        if (rowStr.includes('mata pelajaran') || rowStr.includes('mapel') || rowStr.includes('kkm')) {
-          headerIdx = i;
-          break;
-        }
+      const result = await parseAndImportTemplate(file, 'template_kkm', appContext);
+      if (result.success) {
+        showSaveNotification(result.message);
+        setTimeout(() => {
+          setLocalMapels(appContext.db.mataPelajaran.map((m) => ({
+            ...m,
+            kkm: m.kkm ?? 75,
+            kompleksitas: m.kompleksitas ?? 75,
+            dayaDukung: m.dayaDukung ?? 75,
+            intake: m.intake ?? 75
+          })));
+        }, 100);
+      } else {
+        alert(result.message);
       }
-
-      if (headerIdx < 0) {
-        alert('Format file Excel KKM tidak sesuai. Pastikan terdapat kolom Nama Mata Pelajaran dan KKM.');
-        return;
-      }
-
-      const headers = rows[headerIdx].map((h) => String(h || '').toLowerCase());
-      const mapelCol = headers.findIndex((h) => h.includes('mata pelajaran') || h.includes('mapel'));
-      const kkmCol = headers.findIndex((h) => h.includes('kkm') || h.includes('ketuntasan'));
-      const kompCol = headers.findIndex((h) => h.includes('kompleksitas'));
-      const dayaCol = headers.findIndex((h) => h.includes('daya'));
-      const intakeCol = headers.findIndex((h) => h.includes('intake'));
-
-      if (mapelCol < 0 || kkmCol < 0) {
-        alert('Kolom Mata Pelajaran atau KKM tidak ditemukan dalam file.');
-        return;
-      }
-
-      let updatedCount = 0;
-      const updatedList = [...localMapels];
-
-      for (let r = headerIdx + 1; r < rows.length; r++) {
-        const row = rows[r];
-        if (!row || row.length === 0) continue;
-        const mapelName = String(row[mapelCol] || '').trim();
-        const kkmVal = Number(row[kkmCol]);
-        if (!mapelName || isNaN(kkmVal)) continue;
-
-        const idx = updatedList.findIndex(
-          (m) => m.mataPelajaran.toLowerCase().trim() === mapelName.toLowerCase().trim()
-        );
-
-        if (idx >= 0) {
-          updatedList[idx] = {
-            ...updatedList[idx],
-            kkm: Math.min(100, Math.max(0, kkmVal)),
-            kompleksitas: kompCol >= 0 && !isNaN(Number(row[kompCol])) ? Number(row[kompCol]) : updatedList[idx].kompleksitas,
-            dayaDukung: dayaCol >= 0 && !isNaN(Number(row[dayaCol])) ? Number(row[dayaCol]) : updatedList[idx].dayaDukung,
-            intake: intakeCol >= 0 && !isNaN(Number(row[intakeCol])) ? Number(row[intakeCol]) : updatedList[idx].intake
-          };
-          updatedCount++;
-        }
-      }
-
-      setLocalMapels(updatedList);
-      bulkSaveMataPelajaran(updatedList);
-      showSaveNotification(`Berhasil mengimpor dan memperbarui KKM untuk ${updatedCount} mata pelajaran!`);
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      alert('Gagal membaca file Excel KKM.');
+      alert('Gagal membaca file Excel KKM: ' + (e?.message || 'Format berkas tidak sesuai'));
     }
   };
 

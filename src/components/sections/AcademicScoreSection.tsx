@@ -27,8 +27,10 @@ import {
   exportClassComprehensiveWorkbook
 } from '../../utils/exportHelper';
 import * as XLSX from 'xlsx';
+import { parseAndImportTemplate } from '../../utils/templateImporter';
 
 export const AcademicScoreSection: React.FC = () => {
+  const appContext = useApp();
   const {
     db,
     selectedKelas,
@@ -39,7 +41,7 @@ export const AcademicScoreSection: React.FC = () => {
     showSaveNotification,
     setActiveMenu,
     openReportPreview
-  } = useApp();
+  } = appContext;
   const { status: saveStatus, triggerSave, lastSavedTime } = useSaveFeedback();
   const [selectedMapel, setSelectedMapel] = useState<string>(
     db.mataPelajaran[2]?.mataPelajaran || 'Bahasa Indonesia' // default Bahasa Indonesia
@@ -340,51 +342,31 @@ export const AcademicScoreSection: React.FC = () => {
   // Impor file Excel/CSV
   const handleImportFile = async (file: File) => {
     try {
-      const buffer = await file.arrayBuffer();
-      const wb = XLSX.read(buffer, { type: 'array' });
-      const firstSheet = wb.Sheets[wb.SheetNames[0]];
-      const rowsJson = XLSX.utils.sheet_to_json<(string | number)[]>(firstSheet, { header: 1 });
-      let headerIdx = -1;
-      for (let i = 0; i < Math.min(rowsJson.length, 12); i++) {
-        const rowStr = (rowsJson[i] || []).join(' ').toLowerCase();
-        if (rowStr.includes('nisn') || rowStr.includes('nama')) {
-          headerIdx = i;
-          break;
-        }
+      const result = await parseAndImportTemplate(file, 'template_nilai_akademik', appContext);
+      if (result.success) {
+        showSaveNotification(result.message);
+        // Refresh local rows immediately from the newly updated database state
+        setTimeout(() => {
+          setRows((prev) => {
+            const next = { ...prev };
+            const currentScores = appContext.db.nilaiAkademik;
+            siswaKelas.forEach((s) => {
+              const matched = currentScores.find(
+                (n) => n.nisn === s.nisn && n.mataPelajaran === selectedMapel && n.semester === selectedSemester
+              );
+              if (matched) {
+                next[s.nisn] = { ...matched };
+              }
+            });
+            return next;
+          });
+        }, 100);
+      } else {
+        alert(result.message);
       }
-      if (headerIdx >= 0) {
-        const headers = rowsJson[headerIdx].map((h) => String(h || '').toLowerCase());
-        const nisnCol = headers.findIndex((h) => h.includes('nisn'));
-        const formatifCol = headers.findIndex((h) => h.includes('formatif'));
-        const sumatifCol = headers.findIndex((h) => h.includes('sumatif'));
-        const naCol = headers.findIndex((h) => h.includes('akhir') || h.includes('nilai akhir'));
-
-        setRows((prev) => {
-          const next = { ...prev };
-          for (let r = headerIdx + 1; r < rowsJson.length; r++) {
-            const rowData = rowsJson[r];
-            if (!rowData || rowData.length === 0) continue;
-            const nisnVal = String(rowData[nisnCol] || '').trim();
-            if (nisnVal && next[nisnVal]) {
-              const fVal = formatifCol >= 0 && rowData[formatifCol] !== undefined ? Number(rowData[formatifCol]) || next[nisnVal].formatif : next[nisnVal].formatif;
-              const sVal = sumatifCol >= 0 && rowData[sumatifCol] !== undefined ? Number(rowData[sumatifCol]) || next[nisnVal].sumatif : next[nisnVal].sumatif;
-              const naVal = naCol >= 0 && rowData[naCol] !== undefined ? Number(rowData[naCol]) || Math.round((fVal + sVal) / 2) : Math.round((fVal + sVal) / 2);
-              next[nisnVal] = {
-                ...next[nisnVal],
-                formatif: fVal,
-                sumatif: sVal,
-                nilaiAkhir: naVal,
-                predikat: getPredikat(naVal),
-                capaianKompetensi: getCapaian(naVal),
-                deskripsiRapor: generateAutoDeskripsi(naVal, next[nisnVal].namaSiswa)
-              };
-            }
-          }
-          return next;
-        });
-      }
-    } catch (e) {
+    } catch (e: any) {
       console.error('Import error', e);
+      alert('Gagal mengimpor file nilai: ' + (e?.message || 'Format berkas tidak sesuai'));
     }
   };
 

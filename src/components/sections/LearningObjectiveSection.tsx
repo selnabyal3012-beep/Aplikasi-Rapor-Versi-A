@@ -29,6 +29,7 @@ import { StandardActionToolbar } from '../common/StandardActionToolbar';
 import { SaveStatusIndicator } from '../common/SaveStatusIndicator';
 import { useSaveFeedback } from '../../hooks/useSaveFeedback';
 import * as XLSX from 'xlsx';
+import { parseAndImportTemplate } from '../../utils/templateImporter';
 
 // 6 Agama Resmi di Indonesia untuk Kurikulum Merdeka
 export const ENUM_6_AGAMA = [
@@ -109,6 +110,7 @@ const STANDARD_SAMPLE_TPS: Record<string, string[]> = {
 };
 
 export const LearningObjectiveSection: React.FC = () => {
+  const appContext = useApp();
   const {
     db,
     saveTP,
@@ -119,7 +121,7 @@ export const LearningObjectiveSection: React.FC = () => {
     setSelectedTpMapel,
     syncAllScoresWithTPDescriptions,
     showSaveNotification
-  } = useApp();
+  } = appContext;
 
   // View Mode: 'focused' (tab per selected mapel) or 'all_tables' (each mapel has its own standalone table card)
   const [viewMode, setViewMode] = useState<'focused' | 'all_tables'>('focused');
@@ -385,41 +387,15 @@ export const LearningObjectiveSection: React.FC = () => {
   // Import from Excel file
   const handleImportFile = async (file: File) => {
     try {
-      const buffer = await file.arrayBuffer();
-      const wb = XLSX.read(buffer, { type: 'array' });
-      const firstSheet = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json<string[]>(firstSheet, { header: 1 });
-
-      let importedCount = 0;
-      rows.slice(7).forEach((row, i) => {
-        if (!row || !row[5]) return;
-        const kode = String(row[1] || `TP00${db.tujuanPembelajaran.length + i + 1}`).trim();
-        const mapel = String(
-          row[2] || (selectedTpMapel !== 'SEMUA' ? selectedTpMapel : 'Bahasa Indonesia')
-        ).trim();
-        const text = String(row[5]).trim();
-
-        if (text) {
-          saveTP({
-            id: kode,
-            kodeTp: kode,
-            mataPelajaran: mapel,
-            fase: selectedFase,
-            kelas: selectedKelas,
-            tujuanPembelajaran: text
-          });
-          importedCount++;
-        }
-      });
-
-      if (importedCount > 0) {
-        showNotice(`Berhasil mengimpor ${importedCount} Tujuan Pembelajaran dari Excel.`);
+      const result = await parseAndImportTemplate(file, 'template_tp', appContext);
+      if (result.success) {
+        showNotice(result.message);
       } else {
-        alert('Tidak ada data TP yang valid ditemukan di baris data.');
+        alert(result.message);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert('Format file Excel tidak sesuai. Gunakan template TP yang disediakan.');
+      alert('Gagal membaca file Excel TP: ' + (err?.message || 'Format berkas tidak sesuai'));
     }
   };
 

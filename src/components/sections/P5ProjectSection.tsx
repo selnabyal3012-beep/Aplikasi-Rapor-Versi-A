@@ -6,9 +6,11 @@ import { StandardActionToolbar } from '../common/StandardActionToolbar';
 import { SaveStatusIndicator } from '../common/SaveStatusIndicator';
 import { useSaveFeedback } from '../../hooks/useSaveFeedback';
 import * as XLSX from 'xlsx';
+import { parseAndImportTemplate } from '../../utils/templateImporter';
 
 export const P5ProjectSection: React.FC = () => {
-  const { db, selectedKelas, selectedSemester, selectedFase, saveP5Projek, deleteP5Projek, setActiveMenu } = useApp();
+  const appContext = useApp();
+  const { db, selectedKelas, selectedSemester, selectedFase, saveP5Projek, deleteP5Projek, showSaveNotification, setActiveMenu } = appContext;
   const { status: modalSaveStatus, triggerSave: triggerModalSave } = useSaveFeedback();
   const [modalOpen, setModalOpen] = useState(false);
   const [editingProjek, setEditingProjek] = useState<P5Project | null>(null);
@@ -83,30 +85,15 @@ export const P5ProjectSection: React.FC = () => {
 
   const handleImportFile = async (file: File) => {
     try {
-      const buffer = await file.arrayBuffer();
-      const wb = XLSX.read(buffer, { type: 'array' });
-      const firstSheet = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json<string[]>(firstSheet, { header: 1 });
-      rows.slice(7).forEach((row, i) => {
-        if (!row || !row[2]) return;
-        const judul = String(row[2]).trim();
-        const tema = String(row[3] || 'Gaya Hidup Berkelanjutan');
-        const desc = String(row[5] || '');
-        if (judul) {
-          saveP5Projek({
-            idProjek: `P00${db.p5Projek.length + i + 1}`,
-            namaProjek: judul,
-            tema,
-            fase: selectedFase,
-            kelas: selectedKelas,
-            tahunPelajaran: db.sekolah.tahunPelajaran,
-            semester: selectedSemester,
-            deskripsiProjek: desc
-          });
-        }
-      });
-    } catch {
-      // handled
+      const result = await parseAndImportTemplate(file, 'template_p5', appContext);
+      if (result.success) {
+        showSaveNotification(result.message);
+      } else {
+        alert(result.message);
+      }
+    } catch (e: any) {
+      console.error(e);
+      alert('Gagal mengimpor file projek P5: ' + (e?.message || 'Format tidak sesuai'));
     }
   };
 

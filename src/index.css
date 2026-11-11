@@ -1,9 +1,28 @@
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 
-/* Dynamic report print typography controls */
+/* Dynamic application & report print typography, paper, and theme variables */
 :root {
   --report-font-family: "Times New Roman", Times, serif;
   --report-font-size: 11pt;
+  --app-ui-font-scale: 100%;
+  --app-ui-font-family: "Plus Jakarta Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --print-page-size: auto;
+  --print-margin-top: 15mm;
+  --print-margin-right: 15mm;
+  --print-margin-bottom: 15mm;
+  --print-margin-left: 20mm;
+  --theme-accent: #059669;
+  --theme-accent-hover: #047857;
+}
+
+html {
+  font-size: var(--app-ui-font-scale, 100%);
+  font-family: var(--app-ui-font-family);
+}
+
+html.dark {
+  color-scheme: dark;
 }
 
 .report-typography-scope {
@@ -25,10 +44,32 @@
 }
 
 @media print {
-  /* Dynamic page sizing and standard margins */
+  /* Dynamic page sizing and standard margins customizable by user */
   @page {
-    size: auto;
-    margin: 10mm 12mm 12mm 12mm;
+    size: var(--print-page-size, auto);
+    margin: var(--print-margin-top, 15mm) var(--print-margin-right, 15mm) var(--print-margin-bottom, 15mm) var(--print-margin-left, 20mm);
+  }
+
+  /* Grayscale mode for eco / ink-saving printing in remote schools */
+  body.print-grayscale .printable-area,
+  body.print-grayscale table,
+  body.print-grayscale img,
+  body.print-grayscale svg {
+    filter: grayscale(100%) contrast(105%) !important;
+    -webkit-filter: grayscale(100%) contrast(105%) !important;
+  }
+
+  /* Optional hide official KOP when printing on pre-printed school letterhead */
+  body.print-hide-kop .print-kop-header,
+  body.print-hide-kop [data-kop-header="true"] {
+    display: none !important;
+  }
+
+  /* Solid dark borders for official Kemdikbud report cards */
+  body.print-border-solid table,
+  body.print-border-solid td,
+  body.print-border-solid th {
+    border-color: #000000 !important;
   }
 
   /* CRITICAL: Neutralize overflow on document root and main wrappers so all pages paginate cleanly */

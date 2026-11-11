@@ -4,9 +4,11 @@ import { useApp } from '../../context/AppContext';
 import { P5DimensionItem } from '../../types';
 import { StandardActionToolbar } from '../common/StandardActionToolbar';
 import * as XLSX from 'xlsx';
+import { parseAndImportTemplate } from '../../utils/templateImporter';
 
 export const P5DimensionSection: React.FC = () => {
-  const { db, saveP5Dimensi, deleteP5Dimensi, setActiveMenu } = useApp();
+  const appContext = useApp();
+  const { db, saveP5Dimensi, deleteP5Dimensi, showSaveNotification, setActiveMenu } = appContext;
   const [modalOpen, setModalOpen] = useState(false);
   const [editingDim, setEditingDim] = useState<P5DimensionItem | null>(null);
 
@@ -81,26 +83,15 @@ export const P5DimensionSection: React.FC = () => {
 
   const handleImportFile = async (file: File) => {
     try {
-      const buffer = await file.arrayBuffer();
-      const wb = XLSX.read(buffer, { type: 'array' });
-      const firstSheet = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json<string[]>(firstSheet, { header: 1 });
-      rows.slice(7).forEach((row, i) => {
-        if (!row || !row[1]) return;
-        const dim = String(row[1]).trim();
-        const el = String(row[2] || 'Kolaborasi');
-        const sub = String(row[3] || '');
-        if (dim) {
-          saveP5Dimensi({
-            id: `DIM00${db.p5Dimensi.length + i + 1}`,
-            dimensi: dim,
-            elemen: el,
-            subElemen: sub
-          });
-        }
-      });
-    } catch {
-      // handled
+      const result = await parseAndImportTemplate(file, 'template_p5_dimensi', appContext);
+      if (result.success) {
+        showSaveNotification(result.message);
+      } else {
+        alert(result.message);
+      }
+    } catch (e: any) {
+      console.error(e);
+      alert('Gagal mengimpor file dimensi P5: ' + (e?.message || 'Format tidak sesuai'));
     }
   };
 

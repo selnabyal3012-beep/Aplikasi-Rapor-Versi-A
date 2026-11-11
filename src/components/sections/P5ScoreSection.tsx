@@ -6,9 +6,11 @@ import { StandardActionToolbar } from '../common/StandardActionToolbar';
 import { SaveStatusIndicator } from '../common/SaveStatusIndicator';
 import { useSaveFeedback } from '../../hooks/useSaveFeedback';
 import * as XLSX from 'xlsx';
+import { parseAndImportTemplate } from '../../utils/templateImporter';
 
 export const P5ScoreSection: React.FC = () => {
-  const { db, selectedKelas, selectedSemester, saveP5Nilai, bulkSaveP5Nilai, setActiveMenu } = useApp();
+  const appContext = useApp();
+  const { db, selectedKelas, selectedSemester, saveP5Nilai, bulkSaveP5Nilai, showSaveNotification, setActiveMenu } = appContext;
   const { status: saveStatus, triggerSave, lastSavedTime } = useSaveFeedback();
   const [savedNotice, setSavedNotice] = useState(false);
 
@@ -178,29 +180,33 @@ export const P5ScoreSection: React.FC = () => {
 
   const handleImportFile = async (file: File) => {
     try {
-      const buffer = await file.arrayBuffer();
-      const wb = XLSX.read(buffer, { type: 'array' });
-      const firstSheet = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json<string[]>(firstSheet, { header: 1 });
-      const updated = { ...scores };
-      rows.slice(7).forEach((row) => {
-        if (!row || !row[1]) return;
-        const nisn = String(row[1]).trim();
-        const dim = String(row[3] || '').trim();
-        const cap = (row[5] || 'BSH') as P5Predicate;
-        const desc = String(row[6] || '');
-        const key = `${nisn}_${dim}`;
-        if (updated[key]) {
-          updated[key] = {
-            ...updated[key],
-            capaian: cap,
-            deskripsi: desc || updated[key].deskripsi
-          };
-        }
-      });
-      setScores(updated);
-    } catch {
-      // handled
+      const result = await parseAndImportTemplate(file, 'template_p5_nilai', appContext);
+      if (result.success) {
+        showSaveNotification(result.message);
+        setTimeout(() => {
+          setScores((prev) => {
+            const next = { ...prev };
+            const currentList = appContext.db.p5Nilai;
+            siswaKelas.forEach((s) => {
+              targetDimensiList.forEach((td) => {
+                const key = `${s.nisn}_${td.dimensi}`;
+                const found = currentList.find(
+                  (p) => p.nisn === s.nisn && p.dimensi === td.dimensi && p.idProjek === selectedProjekId
+                );
+                if (found) {
+                  next[key] = { ...found };
+                }
+              });
+            });
+            return next;
+          });
+        }, 100);
+      } else {
+        alert(result.message);
+      }
+    } catch (e: any) {
+      console.error(e);
+      alert('Gagal mengimpor file nilai P5: ' + (e?.message || 'Format tidak sesuai'));
     }
   };
 

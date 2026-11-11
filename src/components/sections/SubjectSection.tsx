@@ -6,9 +6,11 @@ import { StandardActionToolbar } from '../common/StandardActionToolbar';
 import { SaveStatusIndicator } from '../common/SaveStatusIndicator';
 import { useSaveFeedback } from '../../hooks/useSaveFeedback';
 import * as XLSX from 'xlsx';
+import { parseAndImportTemplate } from '../../utils/templateImporter';
 
 export const SubjectSection: React.FC = () => {
-  const { db, saveMataPelajaran, deleteMataPelajaran, setActiveMenu } = useApp();
+  const appContext = useApp();
+  const { db, saveMataPelajaran, deleteMataPelajaran, showSaveNotification, setActiveMenu } = appContext;
   const { status: modalSaveStatus, triggerSave: triggerModalSave } = useSaveFeedback();
   const [modalOpen, setModalOpen] = useState(false);
   const [editingMapel, setEditingMapel] = useState<Subject | null>(null);
@@ -79,25 +81,15 @@ export const SubjectSection: React.FC = () => {
 
   const handleImportFile = async (file: File) => {
     try {
-      const buffer = await file.arrayBuffer();
-      const wb = XLSX.read(buffer, { type: 'array' });
-      const firstSheet = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json<string[]>(firstSheet, { header: 1 });
-      rows.slice(7).forEach((row, i) => {
-        if (!row || !row[1]) return;
-        const nama = String(row[1]).trim();
-        const kelompok = (row[2] || 'Wajib') as 'Wajib' | 'Pilihan' | 'Muatan Lokal';
-        if (nama) {
-          saveMataPelajaran({
-            kode: `MAPEL_${Date.now()}_${i}`,
-            mataPelajaran: nama,
-            kelompok,
-            urutan: i + 1
-          });
-        }
-      });
-    } catch {
-      // handled
+      const result = await parseAndImportTemplate(file, 'template_mapel', appContext);
+      if (result.success) {
+        showSaveNotification(result.message);
+      } else {
+        alert(result.message);
+      }
+    } catch (e: any) {
+      console.error(e);
+      alert('Gagal mengimpor file: ' + (e?.message || 'Format tidak sesuai'));
     }
   };
 

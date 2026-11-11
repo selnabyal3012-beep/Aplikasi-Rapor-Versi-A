@@ -6,9 +6,11 @@ import { StandardActionToolbar } from '../common/StandardActionToolbar';
 import { SaveStatusIndicator } from '../common/SaveStatusIndicator';
 import { useSaveFeedback } from '../../hooks/useSaveFeedback';
 import { generateReportDescriptionFromTP } from '../../utils/tpDescriptionHelper';
+import { parseAndImportTemplate } from '../../utils/templateImporter';
 import * as XLSX from 'xlsx';
 
 export const ReportDescriptionSection: React.FC = () => {
+  const appContext = useApp();
   const {
     db,
     selectedKelas,
@@ -17,7 +19,7 @@ export const ReportDescriptionSection: React.FC = () => {
     bulkSaveNilai,
     syncAllScoresWithTPDescriptions,
     showSaveNotification
-  } = useApp();
+  } = appContext;
 
   const { status: saveStatus, triggerSave, lastSavedTime } = useSaveFeedback();
   const [savedRowNisn, setSavedRowNisn] = useState<string | null>(null);
@@ -183,23 +185,36 @@ export const ReportDescriptionSection: React.FC = () => {
 
   const handleImportFile = async (file: File) => {
     try {
-      const buffer = await file.arrayBuffer();
-      const wb = XLSX.read(buffer, { type: 'array' });
-      const firstSheet = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json<string[]>(firstSheet, { header: 1 });
-      const updated = [...localRows];
-      rows.slice(7).forEach((row) => {
-        if (!row || !row[1]) return;
-        const nisn = String(row[1]).trim();
-        const desc = String(row[6] || row[4] || '').trim();
-        const idx = updated.findIndex((u) => u.nisn === nisn);
-        if (idx !== -1 && desc) {
-          updated[idx] = { ...updated[idx], deskripsiRapor: desc };
-        }
-      });
-      setLocalRows(updated);
-    } catch {
-      // handled
+      const result = await parseAndImportTemplate(file, 'template_deskripsi_rapor', appContext);
+      if (result.success) {
+        showSaveNotification(result.message);
+        // Refresh local rows from updated DB
+        const refreshedMap = new Map(
+          appContext.db.nilaiAkademik
+            .filter((n) => n.kelas === selectedKelas && n.semester === selectedSemester && n.mataPelajaran === selectedMapel)
+            .map((n) => [n.nisn, n])
+        );
+        setLocalRows((prev) =>
+          prev.map((row) => {
+            const updatedScore = refreshedMap.get(row.nisn);
+            if (updatedScore) {
+              return {
+                ...row,
+                nilaiAkhir: updatedScore.nilaiAkhir,
+                capaianKompetensi: updatedScore.capaianKompetensi || row.capaianKompetensi,
+                deskripsiTercapai: updatedScore.deskripsiTercapai || row.deskripsiTercapai,
+                deskripsiPerluPeningkatan: updatedScore.deskripsiPerluPeningkatan || row.deskripsiPerluPeningkatan,
+                deskripsiRapor: updatedScore.deskripsiRapor || row.deskripsiRapor
+              };
+            }
+            return row;
+          })
+        );
+      } else {
+        alert(result.message);
+      }
+    } catch (err: any) {
+      alert(`Gagal membaca file: ${err.message || 'Format tidak valid'}`);
     }
   };
 

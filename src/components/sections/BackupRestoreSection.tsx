@@ -10,13 +10,27 @@ import {
   FileSpreadsheet,
   HardDrive,
   ShieldCheck,
-  Check
+  Check,
+  Cloud,
+  CloudUpload,
+  CloudDownload
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { StandardActionToolbar } from '../common/StandardActionToolbar';
 
 export const BackupRestoreSection: React.FC = () => {
-  const { db, exportDatabaseJson, importDatabaseJson, resetDatabase } = useApp();
+  const {
+    db,
+    exportDatabaseJson,
+    importDatabaseJson,
+    resetDatabase,
+    cloudSyncStatus,
+    lastCloudSyncTime,
+    syncToCloudFirestore,
+    loadFromCloudFirestore,
+    firebaseUser,
+    loginWithGoogle
+  } = useApp();
   const [statusMessage, setStatusMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -152,6 +166,72 @@ export const BackupRestoreSection: React.FC = () => {
         clearLabel="Bersihkan File"
         templateLabel="Format Standar"
       />
+
+      {/* Cloud Firebase Firestore Sync Panel */}
+      <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-blue-950 rounded-2xl p-6 text-white shadow-xl border border-indigo-800/60 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-indigo-800/60 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-gradient-to-br from-amber-400 via-orange-500 to-indigo-600 rounded-xl shadow-md shrink-0">
+              <Cloud size={24} className="text-white" />
+            </div>
+            <div>
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-amber-500/20 text-amber-300 border border-amber-400/30 mb-1">
+                <ShieldCheck size={12} /> Google Cloud Firebase Firestore
+              </div>
+              <h3 className="text-base sm:text-lg font-black text-white">
+                Sinkronisasi Cloud Database (Firebase)
+              </h3>
+              <p className="text-xs text-indigo-200">
+                Simpan &amp; cadangkan seluruh data sekolah ke server cloud Google Firebase Firestore. Data tetap tersimpan aman dan dapat dibuka dari perangkat mana saja.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {!firebaseUser && (
+              <button
+                onClick={() => loginWithGoogle()}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-800 font-bold text-xs shadow-md transition-all cursor-pointer"
+              >
+                <span>Hubungkan Akun Google</span>
+              </button>
+            )}
+            <button
+              onClick={() => syncToCloudFirestore()}
+              disabled={cloudSyncStatus === 'syncing'}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs shadow-md transition-all cursor-pointer disabled:opacity-60"
+            >
+              <CloudUpload size={15} className={cloudSyncStatus === 'syncing' ? 'animate-bounce' : ''} />
+              <span>{cloudSyncStatus === 'syncing' ? 'Menyinkronkan...' : 'Unggah ke Cloud Firebase'}</span>
+            </button>
+            <button
+              onClick={() => loadFromCloudFirestore()}
+              disabled={cloudSyncStatus === 'syncing'}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs border border-indigo-400 shadow-md transition-all cursor-pointer disabled:opacity-60"
+            >
+              <CloudDownload size={15} />
+              <span>Pulihkan dari Cloud</span>
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+          <div className="p-3 bg-slate-900/80 border border-indigo-500/30 rounded-xl">
+            <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Project ID Firebase</span>
+            <span className="font-mono font-bold text-emerald-400">lucky-alpha-5xtlg</span>
+          </div>
+          <div className="p-3 bg-slate-900/80 border border-indigo-500/30 rounded-xl">
+            <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Database Region</span>
+            <span className="font-semibold text-white">asia-southeast1 (Enterprise)</span>
+          </div>
+          <div className="p-3 bg-slate-900/80 border border-indigo-500/30 rounded-xl">
+            <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">Status Sinkronisasi Terakhir</span>
+            <span className="font-semibold text-amber-300">
+              {lastCloudSyncTime ? `Tersinkron pukul ${lastCloudSyncTime}` : 'Belum sinkron sesi ini'}
+            </span>
+          </div>
+        </div>
+      </div>
 
       {/* Main Grid: Backup on Left, Restore on Right */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
