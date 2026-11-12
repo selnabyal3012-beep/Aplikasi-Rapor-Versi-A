@@ -1,12 +1,12 @@
 import React from 'react';
-import { SchoolIdentity, Student } from '../../types';
+import { SchoolIdentity, Student, PaperSize } from '../../types';
 import { LogoTutWuriHandayani, LogoKabupaten } from './OfficialLogos';
 import { useApp } from '../../context/AppContext';
 
 interface ReportCoverPageProps {
   sekolah: SchoolIdentity;
   student: Student;
-  paperSize?: 'F4' | 'A4';
+  paperSize?: PaperSize | string;
   fontFamily?: string;
   fontSize?: string;
 }

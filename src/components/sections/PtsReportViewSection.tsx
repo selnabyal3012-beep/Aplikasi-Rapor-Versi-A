@@ -20,9 +20,11 @@ import { StandardActionToolbar } from '../common/StandardActionToolbar';
 import { SubjectPrintFilterBar } from '../common/SubjectPrintFilterBar';
 import { PrintTypographyControl } from '../common/PrintTypographyControl';
 import { generateReportDescriptionFromTP, getNamaPelajaranAgama } from '../../utils/tpDescriptionHelper';
+import { parseAndImportTemplate } from '../../utils/templateImporter';
 import * as XLSX from 'xlsx';
 
 export const PtsReportViewSection: React.FC = () => {
+  const appContext = useApp();
   const {
     db,
     selectedKelas,
@@ -34,7 +36,20 @@ export const PtsReportViewSection: React.FC = () => {
     showSaveNotification,
     printFontFamily,
     printFontSize
-  } = useApp();
+  } = appContext;
+
+  const handleImportFile = async (file: File) => {
+    try {
+      const res = await parseAndImportTemplate(file, 'template_nilai_akademik', appContext);
+      if (res.success) {
+        showSaveNotification(res.message);
+      } else {
+        alert(res.message);
+      }
+    } catch (err: any) {
+      alert(`Gagal membaca file: ${err.message || 'Format tidak valid'}`);
+    }
+  };
 
   const studentsInClass = db.siswa.filter(
     (s) => s.kelas === selectedKelas && s.statusSiswa === 'Aktif'
@@ -376,8 +391,10 @@ export const PtsReportViewSection: React.FC = () => {
         cancelLabel="Batal"
         onDelete={() => {}}
         deleteLabel="Bersihkan Filter"
-        onImport={(file) => showSaveNotification(`File "${file.name}" berhasil diimpor!`)}
+        onImport={handleImportFile}
         importLabel="Impor Data"
+        onUpload={handleImportFile}
+        uploadLabel="Upload File"
         onExport={() => {
           const wb = XLSX.utils.book_new();
           const data: (string | number)[][] = [
@@ -406,8 +423,6 @@ export const PtsReportViewSection: React.FC = () => {
           XLSX.writeFile(wb, `rapor-pts-${currentStudent.namaSiswa.toLowerCase().replace(/\s+/g, '-')}.xlsx`);
         }}
         exportLabel="Expor Excel (.xlsx)"
-        onUpload={(file) => showSaveNotification(`File lampiran "${file.name}" berhasil diunggah!`)}
-        uploadLabel="Upload Lampiran"
         onClear={() => {}}
         clearLabel="Bersihkan"
         onPrint={handlePrint}

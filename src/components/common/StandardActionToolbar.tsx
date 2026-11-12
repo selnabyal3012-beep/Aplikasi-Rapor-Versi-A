@@ -26,6 +26,7 @@ import {
 import { useApp } from '../../context/AppContext';
 import { SaveStatusIndicator, SaveStatus } from './SaveStatusIndicator';
 import { useSaveFeedback } from '../../hooks/useSaveFeedback';
+import { parseAndImportTemplate } from '../../utils/templateImporter';
 
 export interface ActionToolbarProps {
   title?: string;
@@ -193,6 +194,7 @@ export const StandardActionToolbar: React.FC<ActionToolbarProps> = ({
   className = '',
   compact = false
 }) => {
+  const appContext = useApp();
   const {
     undo,
     redo,
@@ -205,7 +207,7 @@ export const StandardActionToolbar: React.FC<ActionToolbarProps> = ({
     openReportPreview,
     actionToolbarMode,
     setActionToolbarMode
-  } = useApp();
+  } = appContext;
 
   const importFileRef = useRef<HTMLInputElement>(null);
   const uploadFileRef = useRef<HTMLInputElement>(null);
@@ -271,25 +273,43 @@ export const StandardActionToolbar: React.FC<ActionToolbarProps> = ({
     }
   };
 
-  const handleImportFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImportFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       if (onImport) {
         onImport(file);
       } else {
-        showSaveNotification(`File "${file.name}" berhasil diimpor ke sistem!`);
+        try {
+          const res = await parseAndImportTemplate(file, undefined, appContext);
+          if (res.success) {
+            showSaveNotification(res.message);
+          } else {
+            alert(`Gagal Impor: ${res.message}`);
+          }
+        } catch (err: any) {
+          alert(`Gagal membaca file: ${err.message || 'Format tidak dikenali'}`);
+        }
       }
     }
     if (e.target) e.target.value = '';
   };
 
-  const handleUploadFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleUploadFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       if (onUpload) {
         onUpload(file);
       } else {
-        showSaveNotification(`File lampiran "${file.name}" berhasil diunggah!`);
+        try {
+          const res = await parseAndImportTemplate(file, undefined, appContext);
+          if (res.success) {
+            showSaveNotification(res.message);
+          } else {
+            showSaveNotification(`File lampiran "${file.name}" berhasil diunggah!`);
+          }
+        } catch (err: any) {
+          alert(`Gagal membaca file: ${err.message || 'Format tidak dikenali'}`);
+        }
       }
     }
     if (e.target) e.target.value = '';

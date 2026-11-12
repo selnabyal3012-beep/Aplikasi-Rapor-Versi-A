@@ -3,10 +3,12 @@ import { FolderArchive, CheckCircle2, AlertCircle, Printer, Download } from 'luc
 import { useApp } from '../../context/AppContext';
 import { StandardActionToolbar } from '../common/StandardActionToolbar';
 import { SubjectPrintFilterBar } from '../common/SubjectPrintFilterBar';
+import { parseAndImportTemplate } from '../../utils/templateImporter';
 import * as XLSX from 'xlsx';
 
 export const ReportSummarySection: React.FC = () => {
-  const { db, selectedKelas, selectedSemester, setActiveMenu, setPrintTargetStudentId, printableMataPelajaran } = useApp();
+  const appContext = useApp();
+  const { db, selectedKelas, selectedSemester, setActiveMenu, setPrintTargetStudentId, printableMataPelajaran } = appContext;
 
   const siswaKelas = db.siswa.filter((s) => s.kelas === selectedKelas);
   const totalMapel = printableMataPelajaran.length;
@@ -74,6 +76,10 @@ export const ReportSummarySection: React.FC = () => {
     document.body.removeChild(link);
   };
 
+  const handleImportFile = async (file: File) => {
+    await parseAndImportTemplate(file, undefined, appContext);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -118,11 +124,11 @@ export const ReportSummarySection: React.FC = () => {
         cancelLabel="Batal"
         onDelete={() => {}}
         deleteLabel="Bersihkan Filter"
-        onImport={() => {}}
+        onImport={handleImportFile}
         importLabel="Impor Data"
         onExport={exportSummaryCsv}
         exportLabel="Expor Rekap (.csv)"
-        onUpload={() => {}}
+        onUpload={handleImportFile}
         uploadLabel="Upload Berkas"
         onClear={() => {}}
         clearLabel="Bersihkan"

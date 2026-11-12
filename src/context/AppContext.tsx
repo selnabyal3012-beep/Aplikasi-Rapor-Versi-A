@@ -492,6 +492,312 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  // ============================================================
+  // PENGATURAN TEMA, UKURAN HURUF, KERTAS, & PRINT
+  // ============================================================
+  // 1. Tema Aplikasi
+  const [themeAccent, setThemeAccentState] = useState<ThemeAccent>(() => {
+    try {
+      const saved = localStorage.getItem('sdn_balil_theme_accent');
+      if (saved && ['emerald', 'blue', 'indigo', 'slate', 'violet', 'amber', 'rose'].includes(saved)) {
+        return saved as ThemeAccent;
+      }
+    } catch {}
+    return 'emerald';
+  });
+
+  const [themeMode, setThemeModeState] = useState<ThemeMode>(() => {
+    try {
+      const saved = localStorage.getItem('sdn_balil_theme_mode');
+      if (saved && ['light', 'dark', 'auto'].includes(saved)) {
+        return saved as ThemeMode;
+      }
+    } catch {}
+    return 'light';
+  });
+
+  // 2. Ukuran Huruf & Size Huruf UI Aplikasi
+  const [uiFontSize, setUiFontSizeState] = useState<UiFontSize>(() => {
+    try {
+      const saved = localStorage.getItem('sdn_balil_ui_font_size');
+      if (saved && ['small', 'normal', 'large', 'xlarge'].includes(saved)) {
+        return saved as UiFontSize;
+      }
+    } catch {}
+    return 'normal';
+  });
+
+  const [uiFontScalePercent, setUiFontScalePercentState] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('sdn_balil_ui_font_scale_percent');
+      if (saved) {
+        const val = parseInt(saved, 10);
+        if (!isNaN(val) && val >= 80 && val <= 140) return val;
+      }
+    } catch {}
+    return 100;
+  });
+
+  const [uiFontFamily, setUiFontFamilyState] = useState<UiFontFamily>(() => {
+    try {
+      const saved = localStorage.getItem('sdn_balil_ui_font_family');
+      if (saved && ['system', 'plus-jakarta', 'outfit', 'dm-sans'].includes(saved)) {
+        return saved as UiFontFamily;
+      }
+    } catch {}
+    return 'plus-jakarta';
+  });
+
+  // 3. Pengaturan Kertas
+  const [paperSize, setPaperSizeState] = useState<PaperSize>(() => {
+    try {
+      const saved = localStorage.getItem('sdn_balil_paper_size');
+      if (saved && ['F4', 'A4', 'Legal', 'Letter'].includes(saved)) {
+        return saved as PaperSize;
+      }
+    } catch {}
+    return 'F4';
+  });
+
+  const [paperOrientation, setPaperOrientationState] = useState<PaperOrientation>(() => {
+    try {
+      const saved = localStorage.getItem('sdn_balil_paper_orientation');
+      if (saved && ['portrait', 'landscape'].includes(saved)) {
+        return saved as PaperOrientation;
+      }
+    } catch {}
+    return 'portrait';
+  });
+
+  const [paperMarginPreset, setPaperMarginPresetState] = useState<PaperMarginPreset>(() => {
+    try {
+      const saved = localStorage.getItem('sdn_balil_paper_margin_preset');
+      if (saved && ['standar', 'sempit', 'kustom'].includes(saved)) {
+        return saved as PaperMarginPreset;
+      }
+    } catch {}
+    return 'standar';
+  });
+
+  const [paperMargins, setPaperMarginsState] = useState<PrintMargins>(() => {
+    try {
+      const saved = localStorage.getItem('sdn_balil_paper_margins');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.top && parsed.bottom && parsed.left && parsed.right) {
+          return parsed;
+        }
+      }
+    } catch {}
+    return { top: 20, bottom: 20, left: 25, right: 20 };
+  });
+
+  // 4. Pengaturan Print
+  const [printColorMode, setPrintColorModeState] = useState<PrintColorMode>(() => {
+    try {
+      const saved = localStorage.getItem('sdn_balil_print_color_mode');
+      if (saved && ['color', 'grayscale'].includes(saved)) {
+        return saved as PrintColorMode;
+      }
+    } catch {}
+    return 'color';
+  });
+
+  const [printShowKop, setPrintShowKopState] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('sdn_balil_print_show_kop');
+      if (saved !== null) return saved === 'true';
+    } catch {}
+    return true;
+  });
+
+  const [printTableBorder, setPrintTableBorderState] = useState<PrintTableBorder>(() => {
+    try {
+      const saved = localStorage.getItem('sdn_balil_print_table_border');
+      if (saved && ['solid', 'subtle'].includes(saved)) {
+        return saved as PrintTableBorder;
+      }
+    } catch {}
+    return 'solid';
+  });
+
+  const [printPageNumbers, setPrintPageNumbersState] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('sdn_balil_print_page_numbers');
+      if (saved !== null) return saved === 'true';
+    } catch {}
+    return true;
+  });
+
+  // Sinkronisasi Style ke DOM / CSS Variables
+  useEffect(() => {
+    // Theme Accent
+    const accentData = THEME_ACCENT_MAP[themeAccent] || THEME_ACCENT_MAP.emerald;
+    document.documentElement.style.setProperty('--theme-accent', accentData.primary);
+    document.documentElement.style.setProperty('--theme-accent-hover', accentData.hover);
+    document.documentElement.setAttribute('data-theme', themeAccent);
+
+    // Theme Mode (Light / Dark / Auto)
+    if (themeMode === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else if (themeMode === 'light') {
+      document.documentElement.classList.remove('dark');
+    } else {
+      const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      if (isDark) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    }
+
+    // UI Font Scale
+    document.documentElement.style.setProperty('--app-ui-font-scale', `${uiFontScalePercent}%`);
+
+    // UI Font Family
+    const fontDef = UI_FONT_FAMILY_MAP[uiFontFamily] || UI_FONT_FAMILY_MAP['plus-jakarta'];
+    document.documentElement.style.setProperty('--app-ui-font-family', fontDef.css);
+
+    // Paper Size & Orientation
+    const paperSpec = PAPER_SIZE_MAP[paperSize] || PAPER_SIZE_MAP.F4;
+    const finalPaperSize = paperOrientation === 'landscape'
+      ? `${paperSpec.heightMm}mm ${paperSpec.widthMm}mm`
+      : `${paperSpec.widthMm}mm ${paperSpec.heightMm}mm`;
+    document.documentElement.style.setProperty('--print-page-size', finalPaperSize);
+
+    // Paper Margins
+    document.documentElement.style.setProperty('--print-margin-top', `${paperMargins.top}mm`);
+    document.documentElement.style.setProperty('--print-margin-bottom', `${paperMargins.bottom}mm`);
+    document.documentElement.style.setProperty('--print-margin-left', `${paperMargins.left}mm`);
+    document.documentElement.style.setProperty('--print-margin-right', `${paperMargins.right}mm`);
+
+    // Print Grayscale
+    if (printColorMode === 'grayscale') {
+      document.body.classList.add('print-grayscale');
+    } else {
+      document.body.classList.remove('print-grayscale');
+    }
+
+    // Print KOP
+    if (!printShowKop) {
+      document.body.classList.add('print-hide-kop');
+    } else {
+      document.body.classList.remove('print-hide-kop');
+    }
+
+    // Print Border
+    if (printTableBorder === 'solid') {
+      document.body.classList.add('print-border-solid');
+    } else {
+      document.body.classList.remove('print-border-solid');
+    }
+  }, [
+    themeAccent,
+    themeMode,
+    uiFontScalePercent,
+    uiFontFamily,
+    paperSize,
+    paperOrientation,
+    paperMargins,
+    printColorMode,
+    printShowKop,
+    printTableBorder
+  ]);
+
+  const setThemeAccent = (accent: ThemeAccent) => {
+    setThemeAccentState(accent);
+    try { localStorage.setItem('sdn_balil_theme_accent', accent); } catch {}
+    showSaveNotification(`Warna tema aplikasi diatur ke: ${THEME_ACCENT_MAP[accent]?.name || accent}`);
+  };
+
+  const setThemeMode = (mode: ThemeMode) => {
+    setThemeModeState(mode);
+    try { localStorage.setItem('sdn_balil_theme_mode', mode); } catch {}
+    showSaveNotification(`Mode tampilan aplikasi: ${mode === 'dark' ? 'Mode Gelap (Dark Mode)' : mode === 'light' ? 'Mode Terang (Light Mode)' : 'Otomatis Sesuai Sistem'}`);
+  };
+
+  const setUiFontSize = (size: UiFontSize) => {
+    setUiFontSizeState(size);
+    const p = UI_FONT_SCALE_MAP[size]?.percent || 100;
+    setUiFontScalePercentState(p);
+    try {
+      localStorage.setItem('sdn_balil_ui_font_size', size);
+      localStorage.setItem('sdn_balil_ui_font_scale_percent', String(p));
+    } catch {}
+    showSaveNotification(`Ukuran huruf aplikasi diatur ke: ${UI_FONT_SCALE_MAP[size]?.label || size}`);
+  };
+
+  const setUiFontScalePercent = (percent: number) => {
+    const clamped = Math.max(80, Math.min(140, percent));
+    setUiFontScalePercentState(clamped);
+    try { localStorage.setItem('sdn_balil_ui_font_scale_percent', String(clamped)); } catch {}
+  };
+
+  const setUiFontFamily = (family: UiFontFamily) => {
+    setUiFontFamilyState(family);
+    try { localStorage.setItem('sdn_balil_ui_font_family', family); } catch {}
+    showSaveNotification(`Jenis huruf aplikasi diatur ke: ${UI_FONT_FAMILY_MAP[family]?.name || family}`);
+  };
+
+  const setPaperSize = (size: PaperSize) => {
+    setPaperSizeState(size);
+    try { localStorage.setItem('sdn_balil_paper_size', size); } catch {}
+    showSaveNotification(`Ukuran kertas cetak diatur ke: ${size} (${PAPER_SIZE_MAP[size]?.name})`);
+  };
+
+  const setPaperOrientation = (orientation: PaperOrientation) => {
+    setPaperOrientationState(orientation);
+    try { localStorage.setItem('sdn_balil_paper_orientation', orientation); } catch {}
+    showSaveNotification(`Orientasi kertas diatur ke: ${orientation === 'portrait' ? 'Potrait (Tegak)' : 'Landscape (Mendatar)'}`);
+  };
+
+  const setPaperMarginPreset = (preset: PaperMarginPreset) => {
+    setPaperMarginPresetState(preset);
+    if (preset !== 'kustom') {
+      const m = MARGIN_PRESETS[preset];
+      setPaperMarginsState(m);
+      try { localStorage.setItem('sdn_balil_paper_margins', JSON.stringify(m)); } catch {}
+    }
+    try { localStorage.setItem('sdn_balil_paper_margin_preset', preset); } catch {}
+    showSaveNotification(`Batas tepi cetak (margin) diatur ke: ${preset}`);
+  };
+
+  const setPaperMargins = (margins: PrintMargins) => {
+    setPaperMarginsState(margins);
+    setPaperMarginPresetState('kustom');
+    try {
+      localStorage.setItem('sdn_balil_paper_margins', JSON.stringify(margins));
+      localStorage.setItem('sdn_balil_paper_margin_preset', 'kustom');
+    } catch {}
+  };
+
+  const setPrintColorMode = (mode: PrintColorMode) => {
+    setPrintColorModeState(mode);
+    try { localStorage.setItem('sdn_balil_print_color_mode', mode); } catch {}
+    showSaveNotification(`Mode cetak printer diatur ke: ${mode === 'grayscale' ? 'Hitam Putih (Hemat Tinta / Eco-Print)' : 'Berwarna Penuh'}`);
+  };
+
+  const setPrintShowKop = (show: boolean) => {
+    setPrintShowKopState(show);
+    try { localStorage.setItem('sdn_balil_print_show_kop', String(show)); } catch {}
+    showSaveNotification(show ? 'KOP & Logo resmi sekolah ditampilkan saat cetak' : 'KOP & Logo disembunyikan saat cetak (untuk kertas berkop cetak)');
+  };
+
+  const setPrintTableBorder = (border: PrintTableBorder) => {
+    setPrintTableBorderState(border);
+    try { localStorage.setItem('sdn_balil_print_table_border', border); } catch {}
+    showSaveNotification(`Garis tabel rapor diatur ke: ${border === 'solid' ? 'Hitam Tegas Resmi' : 'Abu-abu Lembut'}`);
+  };
+
+  const setPrintPageNumbers = (show: boolean) => {
+    setPrintPageNumbersState(show);
+    try { localStorage.setItem('sdn_balil_print_page_numbers', String(show)); } catch {}
+  };
+
+  const triggerQuickPrint = () => {
+    window.print();
+  };
+
   // Firebase User & Cloud Firestore Sync States
   const [firebaseUser, setFirebaseUser] = useState<any>(null);
   const [cloudSyncStatus, setCloudSyncStatus] = useState<'idle' | 'syncing' | 'synced' | 'error'>('idle');
@@ -1620,7 +1926,38 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         cloudSyncStatus,
         lastCloudSyncTime,
         syncToCloudFirestore,
-        loadFromCloudFirestore
+        loadFromCloudFirestore,
+        // Pengaturan Ukuran Huruf & Size Huruf (UI & Cetak)
+        uiFontSize,
+        setUiFontSize,
+        uiFontScalePercent,
+        setUiFontScalePercent,
+        uiFontFamily,
+        setUiFontFamily,
+        // Pengaturan Kertas
+        paperSize,
+        setPaperSize,
+        paperOrientation,
+        setPaperOrientation,
+        paperMarginPreset,
+        setPaperMarginPreset,
+        paperMargins,
+        setPaperMargins,
+        // Pengaturan Print
+        printColorMode,
+        setPrintColorMode,
+        printShowKop,
+        setPrintShowKop,
+        printTableBorder,
+        setPrintTableBorder,
+        printPageNumbers,
+        setPrintPageNumbers,
+        triggerQuickPrint,
+        // Pengaturan Tema Aplikasi
+        themeAccent,
+        setThemeAccent,
+        themeMode,
+        setThemeMode
       }}
     >
       {children}

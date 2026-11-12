@@ -28,7 +28,11 @@ import {
   SlidersHorizontal,
   EyeOff,
   Cloud,
-  CloudUpload
+  CloudUpload,
+  Sun,
+  Moon,
+  Type,
+  Settings
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { usePWA } from '../hooks/usePWA';
@@ -69,7 +73,12 @@ export const Header: React.FC = () => {
     firebaseUser,
     cloudSyncStatus,
     syncToCloudFirestore,
-    lastCloudSyncTime
+    lastCloudSyncTime,
+    themeMode,
+    setThemeMode,
+    uiFontSize,
+    setUiFontSize,
+    uiFontScalePercent
   } = useApp();
 
   const [showDevModal, setShowDevModal] = useState(false);
@@ -339,6 +348,39 @@ export const Header: React.FC = () => {
             >
               <BookOpen size={12} className="text-amber-300" />
               <span className="hidden sm:inline">PANDUAN</span>
+            </button>
+
+            {/* Tombol Cepat Ukuran Huruf UI */}
+            <button
+              onClick={() => {
+                if (uiFontSize === 'small') setUiFontSize('normal');
+                else if (uiFontSize === 'normal') setUiFontSize('large');
+                else if (uiFontSize === 'large') setUiFontSize('xlarge');
+                else setUiFontSize('small');
+              }}
+              title={`Ukuran Huruf Aplikasi: ${uiFontScalePercent}%. Klik untuk memperbesar/meringkas huruf`}
+              className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700 transition-colors cursor-pointer"
+            >
+              <Type size={12} className="text-emerald-400" />
+              <span className="text-[10px] font-mono">{uiFontScalePercent}%</span>
+            </button>
+
+            {/* Tombol Cepat Ganti Tema Gelap / Terang */}
+            <button
+              onClick={() => setThemeMode(themeMode === 'dark' ? 'light' : 'dark')}
+              title={themeMode === 'dark' ? 'Ganti ke Mode Terang (Light Mode)' : 'Ganti ke Mode Gelap (Dark Mode)'}
+              className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 hover:text-amber-200 border border-slate-700 transition-colors cursor-pointer"
+            >
+              {themeMode === 'dark' ? <Sun size={13} /> : <Moon size={13} />}
+            </button>
+
+            {/* Tombol Pintas Pengaturan Lengkap */}
+            <button
+              onClick={() => setActiveMenu('pengaturan')}
+              title="Buka Menu Pengaturan: Huruf, Kertas, Print, dan Tema"
+              className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700 transition-colors cursor-pointer"
+            >
+              <Settings size={13} />
             </button>
 
             {/* Tombol Tutup Aplikasi */}

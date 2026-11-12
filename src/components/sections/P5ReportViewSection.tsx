@@ -4,9 +4,11 @@ import { useApp } from '../../context/AppContext';
 import { P5Predicate } from '../../types';
 import { StandardActionToolbar } from '../common/StandardActionToolbar';
 import { PrintTypographyControl } from '../common/PrintTypographyControl';
+import { parseAndImportTemplate } from '../../utils/templateImporter';
 import * as XLSX from 'xlsx';
 
 export const P5ReportViewSection: React.FC = () => {
+  const appContext = useApp();
   const {
     db,
     selectedKelas,
@@ -16,7 +18,7 @@ export const P5ReportViewSection: React.FC = () => {
     setPrintTargetStudentId,
     printFontFamily,
     printFontSize
-  } = useApp();
+  } = appContext;
 
   const siswaKelas = db.siswa.filter((s) => s.kelas === selectedKelas);
   const currentStudent = siswaKelas.find((s) => s.idSiswa === printTargetStudentId) || siswaKelas[0];
@@ -58,6 +60,10 @@ export const P5ReportViewSection: React.FC = () => {
   const waliKelasGuru = {
     namaGuru: (db.sekolah.waliKelas && db.sekolah.kelas === selectedKelas) ? db.sekolah.waliKelas : (matchedTeacher?.namaGuru || 'Agus Rama, S.Pd.Gr.'),
     nip: (db.sekolah.nipWaliKelas && db.sekolah.kelas === selectedKelas) ? db.sekolah.nipWaliKelas : (matchedTeacher?.nip || '19960816 202203 1 004')
+  };
+
+  const handleImportFile = async (file: File) => {
+    await parseAndImportTemplate(file, 'template_nilai_p5', appContext);
   };
 
   return (
@@ -131,7 +137,7 @@ export const P5ReportViewSection: React.FC = () => {
         cancelLabel="Batal"
         onDelete={() => {}}
         deleteLabel="Bersihkan Filter"
-        onImport={() => {}}
+        onImport={handleImportFile}
         importLabel="Impor Data"
         onExport={() => {
           const wb = XLSX.utils.book_new();
@@ -148,7 +154,7 @@ export const P5ReportViewSection: React.FC = () => {
           XLSX.writeFile(wb, `rapor-p5-${currentStudent.namaSiswa.toLowerCase().replace(/\s+/g, '-')}.xlsx`);
         }}
         exportLabel="Expor Excel (.xlsx)"
-        onUpload={() => {}}
+        onUpload={handleImportFile}
         uploadLabel="Upload File"
         onClear={() => {}}
         clearLabel="Bersihkan"

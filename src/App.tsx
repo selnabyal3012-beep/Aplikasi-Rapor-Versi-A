@@ -120,17 +120,17 @@ const MainContent: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col font-sans text-slate-800 antialiased print:bg-white print:h-auto print:min-h-0 print:block">
+    <div className="min-h-screen bg-slate-100 dark:bg-slate-950 flex flex-col font-sans text-slate-800 dark:text-slate-100 antialiased print:bg-white print:h-auto print:min-h-0 print:block transition-colors duration-200">
       <Header />
       <div className="flex flex-1 overflow-hidden print:overflow-visible print:h-auto print:block">
         <Sidebar />
         <main
-          className={`flex-1 overflow-y-auto h-[calc(100vh-89px)] print:overflow-visible print:h-auto print:block print:p-0 print:m-0 print:w-full print:max-w-none print:bg-white ${
+          className={`flex-1 overflow-y-auto h-[calc(100vh-89px)] print:overflow-visible print:h-auto print:block print:p-0 print:m-0 print:w-full print:max-w-none print:bg-white transition-colors duration-200 ${
             displayMode === 'full'
               ? 'p-2 sm:p-4'
               : displayMode === 'hp'
-              ? 'p-2 sm:p-3 bg-slate-200/50'
-              : 'p-4 sm:p-6 lg:p-8'
+              ? 'p-2 sm:p-3 bg-slate-200/50 dark:bg-slate-900/80'
+              : 'p-4 sm:p-6 lg:p-8 dark:bg-slate-900'
           }`}
         >
           <div

@@ -36,6 +36,7 @@ import { ReportSchoolIdentityPage } from '../common/ReportSchoolIdentityPage';
 import { ReportStudentIdentityPage } from '../common/ReportStudentIdentityPage';
 import { PrintTypographyControl } from '../common/PrintTypographyControl';
 import { generateReportDescriptionFromTP, getNamaPelajaranAgama } from '../../utils/tpDescriptionHelper';
+import { parseAndImportTemplate } from '../../utils/templateImporter';
 import * as XLSX from 'xlsx';
 
 function getNextClass(current: ClassLevel): string {
@@ -109,6 +110,7 @@ interface AcademicReportViewSectionProps {
 }
 
 export const AcademicReportViewSection: React.FC<AcademicReportViewSectionProps> = ({ forcedSemester }) => {
+  const appContext = useApp();
   const {
     db,
     selectedKelas,
@@ -124,7 +126,20 @@ export const AcademicReportViewSection: React.FC<AcademicReportViewSectionProps>
     openReportPreview,
     printFontFamily,
     printFontSize
-  } = useApp();
+  } = appContext;
+
+  const handleImportFile = async (file: File) => {
+    try {
+      const res = await parseAndImportTemplate(file, undefined, appContext);
+      if (res.success) {
+        showSaveNotification(res.message);
+      } else {
+        alert(res.message);
+      }
+    } catch (err: any) {
+      alert(`Gagal membaca file: ${err.message || 'Format tidak valid'}`);
+    }
+  };
 
   const activeSemester: SemesterType = forcedSemester || selectedSemester;
 
@@ -935,8 +950,10 @@ export const AcademicReportViewSection: React.FC<AcademicReportViewSectionProps>
         cancelLabel="Batal"
         onDelete={() => {}}
         deleteLabel="Bersihkan Filter"
-        onImport={(file) => showSaveNotification(`File rapor "${file.name}" berhasil diimpor!`)}
+        onImport={handleImportFile}
         importLabel="Impor Data"
+        onUpload={handleImportFile}
+        uploadLabel="Upload File"
         onExport={() => {
           const wb = XLSX.utils.book_new();
           const data: (string | number)[][] = [
@@ -966,8 +983,6 @@ export const AcademicReportViewSection: React.FC<AcademicReportViewSectionProps>
           XLSX.writeFile(wb, `rapor-${currentStudent?.namaSiswa || 'siswa'}-kelas-${selectedKelas}.xlsx`);
         }}
         exportLabel="Expor Excel (.xlsx)"
-        onUpload={(file) => showSaveNotification(`Berkas lampiran "${file.name}" terunggah!`)}
-        uploadLabel="Upload Lampiran"
         onClear={() => {}}
         clearLabel="Bersihkan"
         onPrint={handlePrint}

@@ -3,9 +3,11 @@ import { TableProperties, Download, TrendingUp, Award, Printer, Eye, FileSpreads
 import { useApp } from '../../context/AppContext';
 import { StandardActionToolbar } from '../common/StandardActionToolbar';
 import { exportClassComprehensiveWorkbook, exportClassLegerToCsv } from '../../utils/exportHelper';
+import { parseAndImportTemplate } from '../../utils/templateImporter';
 import * as XLSX from 'xlsx';
 
 export const AcademicRecapSection: React.FC = () => {
+  const appContext = useApp();
   const {
     db,
     selectedKelas,
@@ -13,7 +15,7 @@ export const AcademicRecapSection: React.FC = () => {
     setActiveMenu,
     setPrintTargetStudentId,
     openReportPreview
-  } = useApp();
+  } = appContext;
 
   const siswaKelas = db.siswa.filter((s) => s.kelas === selectedKelas);
   const mapelList = db.mataPelajaran;
@@ -88,6 +90,10 @@ export const AcademicRecapSection: React.FC = () => {
     XLSX.writeFile(wb, `leger-nilai-kelas-${selectedKelas}-${selectedSemester}.xlsx`);
   };
 
+  const handleImportFile = async (file: File) => {
+    await parseAndImportTemplate(file, 'template_nilai_akademik', appContext);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -146,11 +152,11 @@ export const AcademicRecapSection: React.FC = () => {
         cancelLabel="Batal"
         onDelete={() => {}}
         deleteLabel="Bersihkan Filter"
-        onImport={() => setActiveMenu('input_nilai')}
+        onImport={handleImportFile}
         importLabel="Impor Nilai"
         onExport={handleExportExcel}
         exportLabel="Expor Legér (.xlsx)"
-        onUpload={() => setActiveMenu('input_nilai')}
+        onUpload={handleImportFile}
         uploadLabel="Upload File"
         onClear={() => {}}
         clearLabel="Bersihkan"

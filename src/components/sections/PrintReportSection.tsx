@@ -72,6 +72,16 @@ function getCurrentClassText(current: ClassLevel): string {
   }
 }
 
+function getPaperCssSize(pSize?: string): string {
+  switch (pSize) {
+    case 'F4': return '215mm 330mm';
+    case 'A4': return '210mm 297mm';
+    case 'Legal': return '215.9mm 355.6mm';
+    case 'Letter': return '215.9mm 279.4mm';
+    default: return '215mm 330mm';
+  }
+}
+
 interface PrintReportSectionProps {
   forcedSemester?: 'Ganjil' | 'Genap';
 }
@@ -93,14 +103,15 @@ export const PrintReportSection: React.FC<PrintReportSectionProps> = ({ forcedSe
     showSaveNotification,
     openReportPreview,
     printFontFamily,
-    printFontSize
+    printFontSize,
+    paperSize,
+    setPaperSize
   } = useApp();
 
   // Semester efektif (mendukung menu terpisah Semester 1 / 2)
   const currentSemester: SemesterType = forcedSemester || selectedSemester;
 
-  // Pengaturan Khusus Cetak: Ukuran Kertas & Mode Pratinjau
-  const [paperSize, setPaperSize] = useState<'F4' | 'A4'>('F4');
+  // Pengaturan Khusus Cetak & Mode Pratinjau
   const [isPreviewMode, setIsPreviewMode] = useState<boolean>(true);
   const [printScope, setPrintScope] = useState<'single' | 'batch'>('single');
   const [searchStudent, setSearchStudent] = useState<string>('');
@@ -283,7 +294,7 @@ export const PrintReportSection: React.FC<PrintReportSectionProps> = ({ forcedSe
         <title>Rapor ${studentTitle} - ${db.sekolah.namaSekolah}</title>
         <style>
           @page {
-            size: ${paperSize === 'F4' ? '215mm 330mm' : '210mm 297mm'};
+            size: ${getPaperCssSize(paperSize)};
             margin: 10mm 15mm 15mm 15mm;
           }
           body {
@@ -388,7 +399,7 @@ export const PrintReportSection: React.FC<PrintReportSectionProps> = ({ forcedSe
       <style>{`
         @media print {
           @page {
-            size: ${paperSize === 'F4' ? '215mm 330mm' : '210mm 297mm'};
+            size: ${getPaperCssSize(paperSize)};
             margin: 10mm 12mm 12mm 12mm;
           }
           html, body, #root, #root > div, main {
@@ -449,9 +460,9 @@ export const PrintReportSection: React.FC<PrintReportSectionProps> = ({ forcedSe
 
         {/* 4 TOMBOL UTAMA: PRINT, PREVIEW, UKURAN KERTAS, DAN PDF */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* 1. TOMBOL UKURAN KERTAS (F4 / A4) */}
-          <div className="inline-flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
-            <span className="text-[11px] font-bold text-slate-500 px-2 flex items-center gap-1">
+          {/* 1. TOMBOL UKURAN KERTAS (F4 / A4 / Legal / Letter) */}
+          <div className="inline-flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
+            <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 px-2 flex items-center gap-1">
               <FileText size={13} /> Kertas:
             </span>
             <button
@@ -461,7 +472,7 @@ export const PrintReportSection: React.FC<PrintReportSectionProps> = ({ forcedSe
               className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${
                 paperSize === 'F4'
                   ? 'bg-amber-500 text-slate-950 shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'
               }`}
             >
               F4 (FOLIO)
@@ -473,10 +484,34 @@ export const PrintReportSection: React.FC<PrintReportSectionProps> = ({ forcedSe
               className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${
                 paperSize === 'A4'
                   ? 'bg-amber-500 text-slate-950 shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'
               }`}
             >
               A4
+            </button>
+            <button
+              type="button"
+              onClick={() => setPaperSize('Legal')}
+              title="Kertas Legal (21.6 x 35.6 cm)"
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${
+                paperSize === 'Legal'
+                  ? 'bg-amber-500 text-slate-950 shadow-xs'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'
+              }`}
+            >
+              LEGAL
+            </button>
+            <button
+              type="button"
+              onClick={() => setPaperSize('Letter')}
+              title="Kertas Letter / Kuarto (21.6 x 27.9 cm)"
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${
+                paperSize === 'Letter'
+                  ? 'bg-amber-500 text-slate-950 shadow-xs'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'
+              }`}
+            >
+              LETTER
             </button>
           </div>
 

@@ -1,11 +1,11 @@
 import React from 'react';
-import { SchoolIdentity, Student } from '../../types';
+import { SchoolIdentity, Student, PaperSize } from '../../types';
 import { useApp } from '../../context/AppContext';
 
 interface ReportStudentIdentityPageProps {
   sekolah: SchoolIdentity;
   student: Student;
-  paperSize?: 'F4' | 'A4';
+  paperSize?: PaperSize | string;
   fontFamily?: string;
   fontSize?: string;
 }
