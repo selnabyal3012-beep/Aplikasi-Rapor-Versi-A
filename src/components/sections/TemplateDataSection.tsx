@@ -173,7 +173,7 @@ export const TemplateDataSection: React.FC = () => {
       icon: <GraduationCap size={20} className="text-blue-600" />,
       fileNameExcel: 'template-data-siswa-kurikulum-merdeka.xlsx',
       fileNameCsv: 'template-data-siswa-kurikulum-merdeka.csv',
-      description: 'Format data pokok peserta didik lengkap (NISN, NIS, nama lengkap, jenis kelamin, agama, TTL, NIK, orang tua, dan alamat).',
+      description: 'Format data pokok peserta didik lengkap (NISN, NIS, nama lengkap, jenis kelamin, agama, TTL, NIK, orang tua, pekerjaan orang tua, wali peserta didik, dan alamat).',
       columns: [
         'NISN',
         'NIS',
@@ -187,13 +187,18 @@ export const TemplateDataSection: React.FC = () => {
         'Fase',
         'Nama Ayah',
         'Nama Ibu',
+        'Pekerjaan Ayah',
+        'Pekerjaan Ibu',
+        'Nama Wali',
+        'Pekerjaan Wali',
+        'Alamat Wali',
         'Alamat',
         'Status Siswa'
       ],
       sampleRows: [
-        ['0098765432', '26001', 'Markus Nabyal', 'L', 'Kristen', 'Balil', '2016-04-12', '9124011204160001', 'IV', 'B', 'Yohanes Nabyal', 'Maria Kasipmabin', 'Kampung Balil, Oksibil', 'Aktif'],
-        ['0098765433', '26002', 'Yohana Kasipmabin', 'P', 'Katolik', 'Oksibil', '2016-08-20', '9124012008160002', 'IV', 'B', 'Anton Kasipmabin', 'Theresia Uropmabin', 'Jalan Poros Balil', 'Aktif'],
-        ['0098765438', '26007', 'Ahmad Fadhil Prasetyo', 'L', 'Islam', 'Jayapura', '2016-05-15', '9124011505160007', 'IV', 'B', 'Mansyur Hidayat', 'Siti Aminah', 'Jalan Trans Papua KM 2', 'Aktif']
+        ['0098765432', '26001', 'Markus Nabyal', 'L', 'Kristen', 'Balil', '2016-04-12', '9124011204160001', 'IV', 'B', 'Yohanes Nabyal', 'Maria Kasipmabin', 'Petani', 'Ibu Rumah Tangga', '-', '-', '-', 'Kampung Balil, Oksibil', 'Aktif'],
+        ['0098765433', '26002', 'Yohana Kasipmabin', 'P', 'Katolik', 'Oksibil', '2016-08-20', '9124012008160002', 'IV', 'B', 'Anton Kasipmabin', 'Theresia Uropmabin', 'PNS', 'Ibu Rumah Tangga', 'Petrus Kasipmabin', 'Guru', 'Oksibil', 'Jalan Poros Balil', 'Aktif'],
+        ['0098765438', '26007', 'Ahmad Fadhil Prasetyo', 'L', 'Islam', 'Jayapura', '2016-05-15', '9124011505160007', 'IV', 'B', 'Mansyur Hidayat', 'Siti Aminah', 'Wiraswasta', 'Pedagang', '-', '-', '-', 'Jalan Trans Papua KM 2', 'Aktif']
       ]
     },
     {
@@ -849,6 +854,11 @@ export const TemplateDataSection: React.FC = () => {
             s.fase,
             s.namaAyah,
             s.namaIbu,
+            s.pekerjaanAyah || '-',
+            s.pekerjaanIbu || '-',
+            s.namaWali || '-',
+            s.pekerjaanWali || '-',
+            s.alamatWali || '-',
             s.alamat,
             s.statusSiswa
           ]);

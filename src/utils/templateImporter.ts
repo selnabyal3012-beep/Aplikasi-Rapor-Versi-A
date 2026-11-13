@@ -411,7 +411,13 @@ export async function parseAndImportTemplate(
         const semCol = findColumnIndex(matchedHeaders, ['semester']);
         const ayahCol = findColumnIndex(matchedHeaders, ['nama ayah', 'ayah'], ['pekerjaan']);
         const ibuCol = findColumnIndex(matchedHeaders, ['nama ibu', 'ibu'], ['pekerjaan']);
-        const alamatCol = findColumnIndex(matchedHeaders, ['alamat peserta didik', 'alamat siswa', 'alamat', 'domisili'], ['sekolah', 'wali']);
+        const pekerjaanAyahCol = findColumnIndex(matchedHeaders, ['pekerjaan ayah', 'kerja ayah']);
+        const pekerjaanIbuCol = findColumnIndex(matchedHeaders, ['pekerjaan ibu', 'kerja ibu']);
+        const namaWaliCol = findColumnIndex(matchedHeaders, ['nama wali', 'wali peserta didik', 'wali siswa'], ['kelas', 'pekerjaan', 'alamat', 'catatan']);
+        const pekerjaanWaliCol = findColumnIndex(matchedHeaders, ['pekerjaan wali', 'kerja wali']);
+        const alamatWaliCol = findColumnIndex(matchedHeaders, ['alamat wali', 'domisili wali']);
+        const sekolahAsalCol = findColumnIndex(matchedHeaders, ['pendidikan sebelumnya', 'sekolah asal', 'asal sekolah']);
+        const alamatCol = findColumnIndex(matchedHeaders, ['alamat peserta didik', 'alamat siswa', 'alamat jalan ortu', 'alamat', 'domisili'], ['sekolah', 'wali']);
         const statusCol = findColumnIndex(matchedHeaders, ['status siswa', 'status']);
 
         const existingStudents: Student[] = appContext.db?.siswa || [];
@@ -478,6 +484,13 @@ export async function parseAndImportTemplate(
               ? 'Lulus'
               : 'Aktif';
 
+          const parseOptionalField = (colIdx: number, fallback?: string): string => {
+            if (colIdx < 0) return fallback || '';
+            const parsed = parseStringCell(row[colIdx]);
+            if (!parsed || parsed === '_' || parsed === '-') return '';
+            return parsed;
+          };
+
           const student: Student = {
             idSiswa: baseId,
             nisn: finalNisn,
@@ -494,6 +507,12 @@ export async function parseAndImportTemplate(
             tahunPelajaran: currentYear,
             namaAyah: parseStringCell(ayahCol >= 0 ? row[ayahCol] : (matchedExisting?.namaAyah || '-'), '-') || '-',
             namaIbu: parseStringCell(ibuCol >= 0 ? row[ibuCol] : (matchedExisting?.namaIbu || '-'), '-') || '-',
+            pekerjaanAyah: parseOptionalField(pekerjaanAyahCol, matchedExisting?.pekerjaanAyah),
+            pekerjaanIbu: parseOptionalField(pekerjaanIbuCol, matchedExisting?.pekerjaanIbu),
+            namaWali: parseOptionalField(namaWaliCol, matchedExisting?.namaWali),
+            pekerjaanWali: parseOptionalField(pekerjaanWaliCol, matchedExisting?.pekerjaanWali),
+            alamatWali: parseOptionalField(alamatWaliCol, matchedExisting?.alamatWali),
+            sekolahAsal: parseOptionalField(sekolahAsalCol, matchedExisting?.sekolahAsal),
             alamat: parseStringCell(alamatCol >= 0 ? row[alamatCol] : (matchedExisting?.alamat || 'Kampung Balil'), 'Kampung Balil') || 'Kampung Balil',
             statusSiswa
           };

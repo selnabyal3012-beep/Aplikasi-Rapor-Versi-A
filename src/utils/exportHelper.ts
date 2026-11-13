@@ -50,10 +50,15 @@ export function exportStudentsToExcel(
       'SEMESTER',
       'NAMA AYAH',
       'NAMA IBU',
+      'PEKERJAAN AYAH',
+      'PEKERJAAN IBU',
+      'NAMA WALI',
+      'PEKERJAAN WALI',
+      'ALAMAT WALI',
       'ALAMAT PESERTA DIDIK',
       'STATUS'
     ],
-    ['(1)', '(2)', '(3)', '(4)', '(5)', '(6)', '(7)', '(8)', '(9)', '(10)', '(11)', '(12)', '(13)', '(14)', '(15)'],
+    ['(1)', '(2)', '(3)', '(4)', '(5)', '(6)', '(7)', '(8)', '(9)', '(10)', '(11)', '(12)', '(13)', '(14)', '(15)', '(16)', '(17)', '(18)', '(19)', '(20)'],
     ...students.map((s, idx) => [
       idx + 1,
       s.nisn,
@@ -68,6 +73,11 @@ export function exportStudentsToExcel(
       s.semester || '1',
       s.namaAyah || '-',
       s.namaIbu || '-',
+      s.pekerjaanAyah || '-',
+      s.pekerjaanIbu || '-',
+      s.namaWali || '-',
+      s.pekerjaanWali || '-',
+      s.alamatWali || '-',
       s.alamat || '-',
       s.statusSiswa || 'Aktif'
     ])
@@ -88,6 +98,11 @@ export function exportStudentsToExcel(
     { wch: 10 },
     { wch: 22 },
     { wch: 22 },
+    { wch: 20 },
+    { wch: 20 },
+    { wch: 22 },
+    { wch: 20 },
+    { wch: 28 },
     { wch: 35 },
     { wch: 12 }
   ];
@@ -124,12 +139,17 @@ export function exportStudentTemplateToExcel(
           s.fase || 'B',
           s.namaAyah && s.namaAyah !== '-' ? s.namaAyah : '',
           s.namaIbu && s.namaIbu !== '-' ? s.namaIbu : '',
+          s.pekerjaanAyah && s.pekerjaanAyah !== '-' && s.pekerjaanAyah !== '_' ? s.pekerjaanAyah : '',
+          s.pekerjaanIbu && s.pekerjaanIbu !== '-' && s.pekerjaanIbu !== '_' ? s.pekerjaanIbu : '',
+          s.namaWali && s.namaWali !== '-' && s.namaWali !== '_' ? s.namaWali : '',
+          s.pekerjaanWali && s.pekerjaanWali !== '-' && s.pekerjaanWali !== '_' ? s.pekerjaanWali : '',
+          s.alamatWali && s.alamatWali !== '-' && s.alamatWali !== '_' ? s.alamatWali : '',
           s.alamat || 'Kampung Balil, Oksibil',
           s.statusSiswa || 'Aktif'
         ])
       : [
-          [1, '0098765432', '26001', 'Markus Nabyal', 'L', 'Kristen', 'Balil', '2016-04-12', '9124011204160001', targetKelas, 'B', 'Yohanes Nabyal', 'Maria Kasipmabin', 'Kampung Balil, Oksibil', 'Aktif'],
-          [2, '0098765433', '26002', 'Yohana Kasipmabin', 'P', 'Katolik', 'Oksibil', '2016-08-20', '9124012008160002', targetKelas, 'B', 'Anton Kasipmabin', 'Theresia Uropmabin', 'Jalan Poros Balil', 'Aktif']
+          [1, '0098765432', '26001', 'Markus Nabyal', 'L', 'Kristen', 'Balil', '2016-04-12', '9124011204160001', targetKelas, 'B', 'Yohanes Nabyal', 'Maria Kasipmabin', 'Petani', 'Ibu Rumah Tangga', '', '', '', 'Kampung Balil, Oksibil', 'Aktif'],
+          [2, '0098765433', '26002', 'Yohana Kasipmabin', 'P', 'Katolik', 'Oksibil', '2016-08-20', '9124012008160002', targetKelas, 'B', 'Anton Kasipmabin', 'Theresia Uropmabin', 'PNS', 'Ibu Rumah Tangga', 'Petrus Kasipmabin', 'Guru', 'Oksibil', 'Jalan Poros Balil', 'Aktif']
         ];
 
   const startEmptyNo = sampleOrActiveRows.length + 1;
@@ -144,6 +164,11 @@ export function exportStudentTemplateToExcel(
     '',
     '',
     targetKelas,
+    '',
+    '',
+    '',
+    '',
+    '',
     '',
     '',
     '',
@@ -172,10 +197,15 @@ export function exportStudentTemplateToExcel(
       'FASE',
       'NAMA AYAH',
       'NAMA IBU',
+      'PEKERJAAN AYAH',
+      'PEKERJAAN IBU',
+      'NAMA WALI',
+      'PEKERJAAN WALI',
+      'ALAMAT WALI',
       'ALAMAT PESERTA DIDIK',
       'STATUS'
     ],
-    ['(1)', '(2)', '(3)', '(4)', '(5)', '(6)', '(7)', '(8)', '(9)', '(10)', '(11)', '(12)', '(13)', '(14)', '(15)'],
+    ['(1)', '(2)', '(3)', '(4)', '(5)', '(6)', '(7)', '(8)', '(9)', '(10)', '(11)', '(12)', '(13)', '(14)', '(15)', '(16)', '(17)', '(18)', '(19)', '(20)'],
     ...sampleOrActiveRows,
     ...blankRows
   ];
@@ -195,6 +225,11 @@ export function exportStudentTemplateToExcel(
     { wch: 8 },
     { wch: 24 },
     { wch: 24 },
+    { wch: 20 },
+    { wch: 20 },
+    { wch: 22 },
+    { wch: 20 },
+    { wch: 28 },
     { wch: 36 },
     { wch: 12 }
   ];
@@ -225,6 +260,11 @@ export function exportStudentsToCsv(
     'Semester',
     'Nama Ayah',
     'Nama Ibu',
+    'Pekerjaan Ayah',
+    'Pekerjaan Ibu',
+    'Nama Wali',
+    'Pekerjaan Wali',
+    'Alamat Wali',
     'Alamat',
     'Status'
   ];
@@ -245,6 +285,11 @@ export function exportStudentsToCsv(
       `"${s.semester || '1'}"`,
       `"${(s.namaAyah || '-').replace(/"/g, '""')}"`,
       `"${(s.namaIbu || '-').replace(/"/g, '""')}"`,
+      `"${(s.pekerjaanAyah || '-').replace(/"/g, '""')}"`,
+      `"${(s.pekerjaanIbu || '-').replace(/"/g, '""')}"`,
+      `"${(s.namaWali || '-').replace(/"/g, '""')}"`,
+      `"${(s.pekerjaanWali || '-').replace(/"/g, '""')}"`,
+      `"${(s.alamatWali || '-').replace(/"/g, '""')}"`,
       `"${(s.alamat || '-').replace(/"/g, '""')}"`,
       `"${s.statusSiswa || 'Aktif'}"`
     ].join(';');
@@ -495,7 +540,7 @@ export function exportClassComprehensiveWorkbook(
 
   // --- SHEET 2: DATA SISWA ---
   const studentRows: (string | number)[][] = [
-    ['NO', 'NISN', 'NIS', 'NAMA SISWA', 'JK', 'TEMPAT LAHIR', 'TGL LAHIR', 'AGAMA', 'KELAS', 'FASE', 'NAMA AYAH', 'NAMA IBU', 'ALAMAT'],
+    ['NO', 'NISN', 'NIS', 'NAMA SISWA', 'JK', 'TEMPAT LAHIR', 'TGL LAHIR', 'AGAMA', 'KELAS', 'FASE', 'NAMA AYAH', 'NAMA IBU', 'PEKERJAAN AYAH', 'PEKERJAAN IBU', 'NAMA WALI', 'PEKERJAAN WALI', 'ALAMAT WALI', 'ALAMAT'],
     ...siswaKelas.map((s, idx) => [
       idx + 1,
       s.nisn,
@@ -509,6 +554,11 @@ export function exportClassComprehensiveWorkbook(
       s.fase,
       s.namaAyah || '-',
       s.namaIbu || '-',
+      s.pekerjaanAyah || '-',
+      s.pekerjaanIbu || '-',
+      s.namaWali || '-',
+      s.pekerjaanWali || '-',
+      s.alamatWali || '-',
       s.alamat || '-'
     ])
   ];

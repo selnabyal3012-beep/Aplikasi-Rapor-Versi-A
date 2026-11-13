@@ -69,6 +69,11 @@ export const StudentSection: React.FC = () => {
     tahunPelajaran: db.sekolah.tahunPelajaran,
     namaAyah: '',
     namaIbu: '',
+    pekerjaanAyah: '',
+    pekerjaanIbu: '',
+    namaWali: '',
+    pekerjaanWali: '',
+    alamatWali: '',
     alamat: 'Kampung Balil, Oksibil',
     statusSiswa: 'Aktif'
   };
@@ -85,6 +90,11 @@ export const StudentSection: React.FC = () => {
       nis: '',
       tempatLahir: '',
       tanggalLahir: '',
+      pekerjaanAyah: '',
+      pekerjaanIbu: '',
+      namaWali: '',
+      pekerjaanWali: '',
+      alamatWali: '',
       kelas: activeKls,
       fase: getFase(activeKls)
     });
@@ -93,13 +103,19 @@ export const StudentSection: React.FC = () => {
 
   const handleOpenEdit = (siswa: Student) => {
     setEditingSiswa(siswa);
+    const cleanOpt = (val?: string) => (!val || val === '-' || val === '_' ? '' : val);
     setFormData({
       ...siswa,
       nisn: siswa.nisn.startsWith('BLM_') ? '' : siswa.nisn,
       nis: siswa.nis === '-' ? '' : siswa.nis,
       tempatLahir: siswa.tempatLahir === '-' ? '' : siswa.tempatLahir,
       tanggalLahir: siswa.tanggalLahir === '-' ? '' : siswa.tanggalLahir,
-      nik: siswa.nik === '-' ? '' : siswa.nik
+      nik: siswa.nik === '-' ? '' : siswa.nik,
+      pekerjaanAyah: cleanOpt(siswa.pekerjaanAyah),
+      pekerjaanIbu: cleanOpt(siswa.pekerjaanIbu),
+      namaWali: cleanOpt(siswa.namaWali),
+      pekerjaanWali: cleanOpt(siswa.pekerjaanWali),
+      alamatWali: cleanOpt(siswa.alamatWali)
     });
     setModalOpen(true);
   };
@@ -115,7 +131,12 @@ export const StudentSection: React.FC = () => {
       nis: formData.nis ? formData.nis.trim() || '-' : '-',
       tempatLahir: formData.tempatLahir ? formData.tempatLahir.trim() || '-' : '-',
       tanggalLahir: formData.tanggalLahir || '-',
-      nik: formData.nik ? formData.nik.trim() || '-' : '-'
+      nik: formData.nik ? formData.nik.trim() || '-' : '-',
+      pekerjaanAyah: formData.pekerjaanAyah ? formData.pekerjaanAyah.trim() : '',
+      pekerjaanIbu: formData.pekerjaanIbu ? formData.pekerjaanIbu.trim() : '',
+      namaWali: formData.namaWali ? formData.namaWali.trim() : '',
+      pekerjaanWali: formData.pekerjaanWali ? formData.pekerjaanWali.trim() : '',
+      alamatWali: formData.alamatWali ? formData.alamatWali.trim() : ''
     };
 
     triggerModalSave(async () => {
@@ -133,12 +154,19 @@ export const StudentSection: React.FC = () => {
   };
 
   const filtered = db.siswa.filter((s) => {
+    const q = search.toLowerCase();
     const matchesKelas = filterKelas === 'SEMUA' || s.kelas === filterKelas;
     const matchesSearch =
-      s.namaSiswa.toLowerCase().includes(search.toLowerCase()) ||
+      s.namaSiswa.toLowerCase().includes(q) ||
       s.nisn.includes(search) ||
       s.nis.includes(search) ||
-      s.alamat.toLowerCase().includes(search.toLowerCase());
+      s.alamat.toLowerCase().includes(q) ||
+      (s.namaAyah || '').toLowerCase().includes(q) ||
+      (s.namaIbu || '').toLowerCase().includes(q) ||
+      (s.pekerjaanAyah || '').toLowerCase().includes(q) ||
+      (s.pekerjaanIbu || '').toLowerCase().includes(q) ||
+      (s.namaWali || '').toLowerCase().includes(q) ||
+      (s.pekerjaanWali || '').toLowerCase().includes(q);
     return matchesKelas && matchesSearch;
   });
 
@@ -256,6 +284,11 @@ export const StudentSection: React.FC = () => {
       tahunPelajaran: db.sekolah.tahunPelajaran,
       namaAyah: '',
       namaIbu: '',
+      pekerjaanAyah: '',
+      pekerjaanIbu: '',
+      namaWali: '',
+      pekerjaanWali: '',
+      alamatWali: '',
       alamat: '',
       statusSiswa: 'Aktif'
     });
@@ -507,6 +540,8 @@ export const StudentSection: React.FC = () => {
                 <th className="py-3 px-3">TTL & NIK</th>
                 <th className="py-3 px-3">Kelas & Fase</th>
                 <th className="py-3 px-3">Nama Orang Tua</th>
+                <th className="py-3 px-3">Pekerjaan Orang Tua</th>
+                <th className="py-3 px-3">Wali Peserta Didik</th>
                 <th className="py-3 px-3">Alamat</th>
                 <th className="py-3 px-3">Status</th>
                 <th className="py-3 px-3 text-right">Aksi</th>
@@ -567,6 +602,27 @@ export const StudentSection: React.FC = () => {
                   <td className="py-3 px-3">
                     <div className="text-slate-700">A: {s.namaAyah || '-'}</div>
                     <div className="text-[10px] text-slate-500">I: {s.namaIbu || '-'}</div>
+                  </td>
+                  <td className="py-3 px-3">
+                    <div className="text-slate-700">
+                      A: {s.pekerjaanAyah && s.pekerjaanAyah !== '_' ? s.pekerjaanAyah : '-'}
+                    </div>
+                    <div className="text-[10px] text-slate-500">
+                      I: {s.pekerjaanIbu && s.pekerjaanIbu !== '_' ? s.pekerjaanIbu : '-'}
+                    </div>
+                  </td>
+                  <td className="py-3 px-3 min-w-[140px]">
+                    <div className="text-slate-700 font-medium">
+                      {s.namaWali && s.namaWali !== '_' ? s.namaWali : '-'}
+                    </div>
+                    <div className="text-[10px] text-slate-500">
+                      Pek: {s.pekerjaanWali && s.pekerjaanWali !== '_' ? s.pekerjaanWali : '-'}
+                    </div>
+                    {s.alamatWali && s.alamatWali !== '_' && s.alamatWali !== '-' && (
+                      <div className="text-[10px] text-slate-400 truncate max-w-[140px]" title={s.alamatWali}>
+                        {s.alamatWali}
+                      </div>
+                    )}
                   </td>
                   <td className="py-3 px-3 text-slate-600 max-w-[150px] truncate" title={s.alamat}>
                     {s.alamat}
@@ -821,6 +877,67 @@ export const StudentSection: React.FC = () => {
                     placeholder="Nama ibu kandung"
                     className="w-full px-3 py-2 border rounded-xl"
                   />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Pekerjaan Ayah</label>
+                  <input
+                    type="text"
+                    value={formData.pekerjaanAyah || ''}
+                    onChange={(e) => setFormData({ ...formData, pekerjaanAyah: e.target.value })}
+                    placeholder="Contoh: Petani / PNS / Wiraswasta"
+                    className="w-full px-3 py-2 border rounded-xl"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Pekerjaan Ibu</label>
+                  <input
+                    type="text"
+                    value={formData.pekerjaanIbu || ''}
+                    onChange={(e) => setFormData({ ...formData, pekerjaanIbu: e.target.value })}
+                    placeholder="Contoh: Ibu Rumah Tangga / Petani"
+                    className="w-full px-3 py-2 border rounded-xl"
+                  />
+                </div>
+              </div>
+
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+                <div className="font-bold text-slate-700 text-[11px] uppercase tracking-wider">
+                  Wali Peserta Didik (Opsional / Jika Ada)
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Nama Wali</label>
+                    <input
+                      type="text"
+                      value={formData.namaWali || ''}
+                      onChange={(e) => setFormData({ ...formData, namaWali: e.target.value })}
+                      placeholder="Nama lengkap wali"
+                      className="w-full px-3 py-2 border rounded-xl bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Pekerjaan Wali</label>
+                    <input
+                      type="text"
+                      value={formData.pekerjaanWali || ''}
+                      onChange={(e) => setFormData({ ...formData, pekerjaanWali: e.target.value })}
+                      placeholder="Contoh: Petani / Guru"
+                      className="w-full px-3 py-2 border rounded-xl bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Alamat Wali</label>
+                    <input
+                      type="text"
+                      value={formData.alamatWali || ''}
+                      onChange={(e) => setFormData({ ...formData, alamatWali: e.target.value })}
+                      placeholder="Alamat domisili wali"
+                      className="w-full px-3 py-2 border rounded-xl bg-white"
+                    />
+                  </div>
                 </div>
               </div>
 
