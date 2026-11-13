@@ -29,6 +29,7 @@ export interface ImportResult {
   templateId: string;
   templateName: string;
   importedCount: number;
+  importedClasses?: ClassLevel[];
   message: string;
   errors?: string[];
 }
@@ -37,16 +38,18 @@ export interface ImportResult {
  * Format string tanggal dari Excel (bisa berupa serial number 42472 atau string tanggal)
  */
 function parseExcelDate(val: any): string {
-  if (!val) return '2016-01-01';
+  if (!val) return '-';
   if (typeof val === 'number') {
     // Excel serial number date conversion
     const date = new Date((val - 25569) * 86400 * 1000);
+    if (isNaN(date.getTime())) return '-';
     const y = date.getFullYear();
     const m = String(date.getMonth() + 1).padStart(2, '0');
     const d = String(date.getDate()).padStart(2, '0');
     return `${y}-${m}-${d}`;
   }
   const str = String(val).trim();
+  if (!str || str === '-') return '-';
   // If DD/MM/YYYY
   if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(str)) {
     const parts = str.split('/');
@@ -80,23 +83,56 @@ function parseNumberCell(val: any, fallback = 0): number {
 }
 
 /**
- * Normalisasi nama kelas ke standar Romawi Kurikulum Merdeka (I, II, III, IV, V, VI, VII, ...)
+ * Normalisasi nama kelas ke standar Romawi Kurikulum Merdeka (I, II, III, IV, V, VI, VII, ..., XIII)
  */
 function normalizeKelas(rawVal: any, fallback: ClassLevel = 'IV'): ClassLevel {
-  if (!rawVal) return fallback;
-  const str = String(rawVal).toUpperCase().replace(/KELAS\s*/i, '').trim();
-  if (['I', '1', 'SATU'].includes(str)) return 'I';
-  if (['II', '2', 'DUA'].includes(str)) return 'II';
-  if (['III', '3', 'TIGA'].includes(str)) return 'III';
-  if (['IV', '4', 'EMPAT'].includes(str)) return 'IV';
-  if (['V', '5', 'LIMA'].includes(str)) return 'V';
-  if (['VI', '6', 'ENAM'].includes(str)) return 'VI';
-  if (['VII', '7', 'TUJUH'].includes(str)) return 'VII';
-  if (['VIII', '8', 'DELAPAN'].includes(str)) return 'VIII';
-  if (['IX', '9', 'SEMBILAN'].includes(str)) return 'IX';
-  if (['X', '10', 'SEPULUH'].includes(str)) return 'X';
-  if (['XI', '11', 'SEBELAS'].includes(str)) return 'XI';
-  if (['XII', '12', 'DUA BELAS'].includes(str)) return 'XII';
+  if (rawVal === null || rawVal === undefined || String(rawVal).trim() === '') return fallback;
+  const str = String(rawVal)
+    .toUpperCase()
+    .replace(/\(.*?\)/g, ' ')
+    .replace(/KELAS|KLS|ROMBEL/gi, ' ')
+    .replace(/[^A-Z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (!str) return fallback;
+
+  const exactMap: Record<string, ClassLevel> = {
+    'I': 'I', '1': 'I', '1A': 'I', '1B': 'I', '1C': 'I', 'SATU': 'I',
+    'II': 'II', '2': 'II', '2A': 'II', '2B': 'II', '2C': 'II', 'DUA': 'II',
+    'III': 'III', '3': 'III', '3A': 'III', '3B': 'III', '3C': 'III', 'TIGA': 'III',
+    'IV': 'IV', '4': 'IV', '4A': 'IV', '4B': 'IV', '4C': 'IV', 'EMPAT': 'IV',
+    'V': 'V', '5': 'V', '5A': 'V', '5B': 'V', '5C': 'V', 'LIMA': 'V',
+    'VI': 'VI', '6': 'VI', '6A': 'VI', '6B': 'VI', '6C': 'VI', 'ENAM': 'VI',
+    'VII': 'VII', '7': 'VII', '7A': 'VII', '7B': 'VII', 'TUJUH': 'VII',
+    'VIII': 'VIII', '8': 'VIII', '8A': 'VIII', '8B': 'VIII', 'DELAPAN': 'VIII',
+    'IX': 'IX', '9': 'IX', '9A': 'IX', '9B': 'IX', 'SEMBILAN': 'IX',
+    'X': 'X', '10': 'X', '10A': 'X', 'SEPULUH': 'X',
+    'XI': 'XI', '11': 'XI', '11A': 'XI', 'SEBELAS': 'XI',
+    'XII': 'XII', '12': 'XII', '12A': 'XII', 'DUA BELAS': 'XII',
+    'XIII': 'XIII', '13': 'XIII', 'TIGA BELAS': 'XIII'
+  };
+
+  if (exactMap[str]) return exactMap[str];
+
+  // Cek token pertama (misal "IV A" -> "IV", "4 A" -> "4")
+  const tokens = str.split(' ');
+  for (const tok of tokens) {
+    if (exactMap[tok]) return exactMap[tok];
+    const numMatch = tok.match(/^(\d{1,2})[A-Z]?$/);
+    if (numMatch && exactMap[numMatch[1]]) return exactMap[numMatch[1]];
+  }
+
+  // Cek urutan angka Romawi dari terpanjang agar 'IV' tidak cocok sebagai 'I' atau 'V'
+  const romanOrder: ClassLevel[] = ['XIII', 'XII', 'XI', 'VIII', 'VII', 'IX', 'VI', 'IV', 'III', 'II', 'X', 'V', 'I'];
+  for (const rom of romanOrder) {
+    if (new RegExp(`\\b${rom}\\b`).test(str)) return rom;
+  }
+
+  // Cek angka 1-13
+  const digitMatch = str.match(/\b(1[0-3]|[1-9])\b/);
+  if (digitMatch && exactMap[digitMatch[1]]) return exactMap[digitMatch[1]];
+
   return fallback;
 }
 
@@ -112,10 +148,24 @@ function normalizeSemester(rawVal: any, fallback: SemesterType = 'Ganjil'): Seme
 }
 
 /**
+ * Normalisasi Agama ke 6 agama resmi
+ */
+function normalizeAgama(rawVal: any, fallback = 'Kristen'): 'Islam' | 'Katolik' | 'Kristen' | 'Hindu' | 'Buddha' | 'Konghucu' {
+  const str = String(rawVal || '').toLowerCase().trim();
+  if (str.includes('islam')) return 'Islam';
+  if (str.includes('katolik') || str.includes('katholik')) return 'Katolik';
+  if (str.includes('kristen') || str.includes('protestan')) return 'Kristen';
+  if (str.includes('hindu')) return 'Hindu';
+  if (str.includes('buddha') || str.includes('budha')) return 'Buddha';
+  if (str.includes('konghucu') || str.includes('khonghucu')) return 'Konghucu';
+  return fallback as any;
+}
+
+/**
  * Membersihkan nama header kolom (menghapus nomor (1), tanda baca, kurung, whitespace berlebih)
  */
 function cleanHeader(header: any): string {
-  if (!header) return '';
+  if (header === null || header === undefined) return '';
   return String(header)
     .toLowerCase()
     .replace(/\(\d+\)/g, '')
@@ -125,7 +175,8 @@ function cleanHeader(header: any): string {
 }
 
 /**
- * Mencari baris header kolom yang sebenarnya dalam lembar Excel
+ * Mencari baris header kolom yang sebenarnya dalam lembar Excel.
+ * Menghindari baris judul/kop (yang biasanya hanya berisi 1-2 sel terisi).
  */
 function findHeaderRowIndex(
   rows: (string | number)[][],
@@ -136,26 +187,33 @@ function findHeaderRowIndex(
 
   for (let r = 0; r < Math.min(rows.length, 35); r++) {
     const row = rows[r] || [];
-    const cleanedRow = row.map(cleanHeader);
-    const rowCombined = cleanedRow.join(' ');
+    const cleanedCells = row.map(cleanHeader);
+    const nonEmptyCells = cleanedCells.filter((c) => c.length > 0);
+    // Abaikan baris judul / banner yang hanya punya 1 sel (misal "NAMA SEKOLAH: SD NEGERI BALIL")
+    if (nonEmptyCells.length < 2) continue;
 
     let score = 0;
     for (const group of expectedKeywords) {
-      if (group.some((kw) => rowCombined.includes(kw))) {
-        score++;
-      }
+      const matched = nonEmptyCells.some((cell) => group.some((kw) => cell.includes(kw)));
+      if (matched) score++;
     }
 
-    if (score > maxScore && score >= 2) {
-      maxScore = score;
+    // Bonus jika banyak sel pendek mirip header tabel (bukan paragraf panjang)
+    const headerLikeBonus = nonEmptyCells.length >= 4 ? 0.5 : 0;
+    const totalScore = score + headerLikeBonus;
+
+    if (score >= 2 && totalScore > maxScore) {
+      maxScore = totalScore;
       bestIdx = r;
     }
   }
 
-  // Jika tidak ditemukan dengan kata kunci kompleks, fallback ke baris yang punya kata 'nama' atau 'no'
+  // Jika tidak ditemukan dengan kata kunci kompleks, fallback ke baris tabel yang punya minimal 2 kolom
   if (bestIdx < 0) {
-    for (let r = 0; r < Math.min(rows.length, 15); r++) {
-      const rowStr = (rows[r] || []).map(cleanHeader).join(' ');
+    for (let r = 0; r < Math.min(rows.length, 20); r++) {
+      const cells = (rows[r] || []).map(cleanHeader).filter(Boolean);
+      if (cells.length < 2) continue;
+      const rowStr = cells.join(' ');
       if (rowStr.includes('nama') || rowStr.includes('nisn') || rowStr.includes('kode') || rowStr.includes('mapel')) {
         bestIdx = r;
         break;
@@ -169,15 +227,31 @@ function findHeaderRowIndex(
 }
 
 /**
- * Mencari indeks kolom berdasarkan daftar sinonim kata kunci
+ * Mencari indeks kolom berdasarkan daftar sinonim berprioritas dengan pengecualian (anti-tabrakan seperti 'nis' vs 'nisn', atau 'nama' vs 'nama ayah').
  */
-function findColumnIndex(headers: string[], synonyms: string[]): number {
-  for (let i = 0; i < headers.length; i++) {
-    const h = headers[i];
-    if (synonyms.some((syn) => h.includes(syn))) {
-      return i;
-    }
+function findColumnIndex(headers: string[], synonyms: string[], exclusions: string[] = []): number {
+  const isExcluded = (h: string) => exclusions.some((ex) => h.includes(ex));
+
+  // Pass 1: Kecocokan persis (exact match) berdasarkan urutan prioritas sinonim
+  for (const syn of synonyms) {
+    const idx = headers.findIndex((h) => h && !isExcluded(h) && h === syn);
+    if (idx >= 0) return idx;
   }
+
+  // Pass 2: Kecocokan kata utuh (word boundary) berdasarkan urutan prioritas sinonim
+  for (const syn of synonyms) {
+    const escaped = syn.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`\\b${escaped}\\b`);
+    const idx = headers.findIndex((h) => h && !isExcluded(h) && regex.test(h));
+    if (idx >= 0) return idx;
+  }
+
+  // Pass 3: Kecocokan substring berdasarkan urutan prioritas sinonim
+  for (const syn of synonyms) {
+    const idx = headers.findIndex((h) => h && !isExcluded(h) && h.includes(syn));
+    if (idx >= 0) return idx;
+  }
+
   return -1;
 }
 
@@ -314,28 +388,36 @@ export async function parseAndImportTemplate(
       case 'template_identitas_siswa':
       case 'template_rapor_peserta_didik': {
         const { headerIdx, matchedHeaders } = findHeaderRowIndex(rawRows, [
-          ['nisn'],
-          ['nama', 'siswa', 'peserta'],
-          ['jk', 'kelamin'],
-          ['agama', 'tempat', 'tgl', 'ayah', 'ibu', 'alamat']
+          ['nisn', 'nis', 'no induk'],
+          ['nama lengkap siswa', 'nama siswa', 'nama lengkap', 'nama peserta didik', 'nama'],
+          ['jk', 'kelamin', 'l p'],
+          ['agama', 'tempat lahir', 'tanggal lahir', 'tgl lahir', 'kelas', 'alamat', 'ayah', 'ibu']
         ]);
 
         const nisnCol = findColumnIndex(matchedHeaders, ['nisn']);
-        const nisCol = findColumnIndex(matchedHeaders, ['nis']);
-        const namaCol = findColumnIndex(matchedHeaders, ['nama siswa', 'nama lengkap', 'nama']);
-        const jkCol = findColumnIndex(matchedHeaders, ['jenis kelamin', 'jk', 'kelamin', 'l p']);
+        const nisCol = findColumnIndex(matchedHeaders, ['nis', 'no induk'], ['nisn']);
+        const namaCol = findColumnIndex(
+          matchedHeaders,
+          ['nama lengkap siswa', 'nama siswa', 'nama lengkap', 'nama peserta didik', 'peserta didik', 'nama'],
+          ['sekolah', 'ayah', 'ibu', 'wali', 'orang tua']
+        );
+        const jkCol = findColumnIndex(matchedHeaders, ['jenis kelamin', 'jk l p', 'jk', 'kelamin', 'l p']);
         const agamaCol = findColumnIndex(matchedHeaders, ['agama']);
-        const tempatCol = findColumnIndex(matchedHeaders, ['tempat lahir', 'tempat']);
-        const tglCol = findColumnIndex(matchedHeaders, ['tanggal lahir', 'tgl lahir', 'tanggal']);
+        const tempatCol = findColumnIndex(matchedHeaders, ['tempat lahir', 'tempat'], ['rapor']);
+        const tglCol = findColumnIndex(matchedHeaders, ['tanggal lahir', 'tgl lahir', 'ttl', 'tanggal'], ['rapor']);
         const nikCol = findColumnIndex(matchedHeaders, ['nik']);
-        const kelasCol = findColumnIndex(matchedHeaders, ['kelas', 'rombel']);
+        const kelasCol = findColumnIndex(matchedHeaders, ['kelas', 'rombel'], ['wali']);
         const faseCol = findColumnIndex(matchedHeaders, ['fase']);
-        const ayahCol = findColumnIndex(matchedHeaders, ['ayah', 'nama ayah']);
-        const ibuCol = findColumnIndex(matchedHeaders, ['ibu', 'nama ibu']);
-        const alamatCol = findColumnIndex(matchedHeaders, ['alamat', 'domisili']);
-        const statusCol = findColumnIndex(matchedHeaders, ['status']);
+        const semCol = findColumnIndex(matchedHeaders, ['semester']);
+        const ayahCol = findColumnIndex(matchedHeaders, ['nama ayah', 'ayah'], ['pekerjaan']);
+        const ibuCol = findColumnIndex(matchedHeaders, ['nama ibu', 'ibu'], ['pekerjaan']);
+        const alamatCol = findColumnIndex(matchedHeaders, ['alamat peserta didik', 'alamat siswa', 'alamat', 'domisili'], ['sekolah', 'wali']);
+        const statusCol = findColumnIndex(matchedHeaders, ['status siswa', 'status']);
 
+        const existingStudents: Student[] = appContext.db?.siswa || [];
         const studentsToSave: Student[] = [];
+        const importedClassSet = new Set<ClassLevel>();
+
         let startRow = headerIdx + 1;
         if (startRow < rawRows.length && isNumberingRow(rawRows[startRow])) {
           startRow++;
@@ -345,40 +427,75 @@ export async function parseAndImportTemplate(
           const row = rawRows[r];
           if (!row || row.length === 0) continue;
 
-          const nama = parseStringCell(namaCol >= 0 ? row[namaCol] : row[2]);
-          if (!nama || nama.toLowerCase().includes('contoh') || nama.toLowerCase().includes('format')) {
+          // Tentukan nama siswa (gunakan kolom nama jika ketemu, atau cari kolom teks wajar)
+          const rawNama = namaCol >= 0 ? row[namaCol] : (row[3] || row[2] || row[1]);
+          const nama = parseStringCell(rawNama);
+          const lowerNama = nama.toLowerCase();
+          if (
+            !nama ||
+            lowerNama === '-' ||
+            lowerNama === 'nama siswa' ||
+            lowerNama === 'nama lengkap siswa' ||
+            lowerNama.includes('contoh') ||
+            lowerNama.includes('format pengisian') ||
+            /^\(?\d+\)?$/.test(nama)
+          ) {
             continue;
           }
 
-          let nisn = parseStringCell(nisnCol >= 0 ? row[nisnCol] : row[1]);
-          if (!nisn) {
-            nisn = `00${Date.now().toString().slice(-8)}${studentsToSave.length}`;
+          let rawNisn = parseStringCell(nisnCol >= 0 ? row[nisnCol] : (row[1] ?? ''));
+          if (rawNisn === '-' || rawNisn.toLowerCase().includes('belum ada') || rawNisn.toLowerCase().includes('kosong')) {
+            rawNisn = '';
           }
 
           const rawKelas = kelasCol >= 0 ? row[kelasCol] : currentKelas;
           const kelas = normalizeKelas(rawKelas, currentKelas);
-          const rawJk = parseStringCell(jkCol >= 0 ? row[jkCol] : 'L').toUpperCase();
-          const jk = rawJk.startsWith('P') ? 'P' : 'L';
-          const fase = (faseCol >= 0 && row[faseCol] ? String(row[faseCol]).toUpperCase().trim() : getFaseFromKelas(kelas)) as FaseType;
+          importedClassSet.add(kelas);
+
+          // Cari siswa yang sudah ada berdasarkan NISN valid atau (Nama + Kelas) agar tidak duplikat
+          const matchedExisting = existingStudents.find((s) => {
+            if (rawNisn && !rawNisn.startsWith('BLM_') && s.nisn === rawNisn) return true;
+            return s.namaSiswa.trim().toLowerCase() === lowerNama && s.kelas === kelas;
+          });
+
+          const baseId = matchedExisting?.idSiswa || `S_IMP_${Date.now()}_${r}`;
+          const finalNisn = rawNisn || matchedExisting?.nisn || `BLM_${baseId}`;
+
+          const rawJk = parseStringCell(jkCol >= 0 ? row[jkCol] : (matchedExisting?.jenisKelamin || 'L')).toUpperCase();
+          const jk: 'L' | 'P' =
+            rawJk === 'P' || rawJk.startsWith('PEREMPUAN') || rawJk.startsWith('PR') || rawJk.startsWith('WANITA')
+              ? 'P'
+              : 'L';
+
+          const rawFase = faseCol >= 0 ? parseStringCell(row[faseCol]).toUpperCase().replace('FASE', '').trim() : '';
+          const fase = (['A', 'B', 'C', 'D', 'E', 'F'].includes(rawFase) ? rawFase : getFaseFromKelas(kelas)) as FaseType;
+
+          const rawStatus = parseStringCell(statusCol >= 0 ? row[statusCol] : (matchedExisting?.statusSiswa || 'Aktif'));
+          const statusSiswa: 'Aktif' | 'Mutasi' | 'Lulus' =
+            rawStatus.toLowerCase().includes('mutasi')
+              ? 'Mutasi'
+              : rawStatus.toLowerCase().includes('lulus')
+              ? 'Lulus'
+              : 'Aktif';
 
           const student: Student = {
-            idSiswa: `S_${nisn}_${Date.now()}`,
-            nisn,
-            nis: parseStringCell(nisCol >= 0 ? row[nisCol] : '26000'),
+            idSiswa: baseId,
+            nisn: finalNisn,
+            nis: parseStringCell(nisCol >= 0 ? row[nisCol] : (matchedExisting?.nis || '-'), '-') || '-',
             namaSiswa: nama,
             jenisKelamin: jk,
-            tempatLahir: parseStringCell(tempatCol >= 0 ? row[tempatCol] : 'Balil', 'Balil'),
-            tanggalLahir: parseExcelDate(tglCol >= 0 ? row[tglCol] : '2016-01-01'),
-            nik: parseStringCell(nikCol >= 0 ? row[nikCol] : '9124010000000000'),
-            agama: parseStringCell(agamaCol >= 0 ? row[agamaCol] : 'Kristen', 'Kristen') as any,
+            tempatLahir: parseStringCell(tempatCol >= 0 ? row[tempatCol] : (matchedExisting?.tempatLahir || '-'), '-') || '-',
+            tanggalLahir: tglCol >= 0 && row[tglCol] ? parseExcelDate(row[tglCol]) : (matchedExisting?.tanggalLahir || '-'),
+            nik: parseStringCell(nikCol >= 0 ? row[nikCol] : (matchedExisting?.nik || '-'), '-') || '-',
+            agama: normalizeAgama(agamaCol >= 0 ? row[agamaCol] : (matchedExisting?.agama || 'Kristen')),
             kelas,
             fase,
-            semester: currentSemester,
+            semester: semCol >= 0 ? normalizeSemester(row[semCol], currentSemester) : currentSemester,
             tahunPelajaran: currentYear,
-            namaAyah: parseStringCell(ayahCol >= 0 ? row[ayahCol] : 'Orang Tua Siswa'),
-            namaIbu: parseStringCell(ibuCol >= 0 ? row[ibuCol] : 'Ibu Siswa'),
-            alamat: parseStringCell(alamatCol >= 0 ? row[alamatCol] : 'Kampung Balil, Distrik Oksibil'),
-            statusSiswa: (parseStringCell(statusCol >= 0 ? row[statusCol] : 'Aktif') as any) || 'Aktif'
+            namaAyah: parseStringCell(ayahCol >= 0 ? row[ayahCol] : (matchedExisting?.namaAyah || '-'), '-') || '-',
+            namaIbu: parseStringCell(ibuCol >= 0 ? row[ibuCol] : (matchedExisting?.namaIbu || '-'), '-') || '-',
+            alamat: parseStringCell(alamatCol >= 0 ? row[alamatCol] : (matchedExisting?.alamat || 'Kampung Balil'), 'Kampung Balil') || 'Kampung Balil',
+            statusSiswa
           };
 
           studentsToSave.push(student);
@@ -390,17 +507,19 @@ export async function parseAndImportTemplate(
             templateId: 'template_siswa',
             templateName: 'Data Siswa',
             importedCount: 0,
-            message: 'Tidak ada baris siswa yang valid untuk diimpor. Periksa nama siswa di file Anda.'
+            message: 'Tidak ada baris siswa yang valid untuk diimpor. Pastikan kolom Nama Siswa terisi pada file Excel/CSV Anda.'
           };
         }
 
         appContext.saveSiswaBatch(studentsToSave);
+        const importedClasses = Array.from(importedClassSet);
         return {
           success: true,
           templateId: 'template_siswa',
           templateName: 'Data Siswa (Peserta Didik)',
           importedCount: studentsToSave.length,
-          message: `Berhasil mengimpor ${studentsToSave.length} data siswa! Seluruh relasi ke kelas, mapel agama, nilai, kehadiran, dan catatan rapor otomatis terhubung.`
+          importedClasses,
+          message: `Berhasil mengimpor ${studentsToSave.length} data siswa (Kelas ${importedClasses.join(', ')})! Seluruh relasi ke kelas, mapel agama, nilai, kehadiran, dan catatan rapor otomatis terhubung.`
         };
       }
 

@@ -190,7 +190,17 @@ export const BackupRestoreSection: React.FC = () => {
           <div className="flex flex-wrap items-center gap-2">
             {!firebaseUser && (
               <button
-                onClick={() => loginWithGoogle()}
+                onClick={async () => {
+                  try {
+                    await loginWithGoogle();
+                  } catch (err: any) {
+                    setStatusMessage({
+                      text: err?.message || 'Gagal menghubungkan Akun Google Firebase.',
+                      type: 'error'
+                    });
+                    setTimeout(() => setStatusMessage(null), 4000);
+                  }
+                }}
                 className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-800 font-bold text-xs shadow-md transition-all cursor-pointer"
               >
                 <span>Hubungkan Akun Google</span>

@@ -498,9 +498,9 @@ export const ReportPreviewModal: React.FC<ReportPreviewModalProps> = ({
                     <th className="border border-slate-900 py-2 px-1 text-center w-8">No</th>
                     <th className="border border-slate-900 py-2 px-3 text-left">Mata Pelajaran</th>
                     <th className="border border-slate-900 py-2 px-2 text-center w-12">KKM</th>
-                    <th className="border border-slate-900 py-2 px-2 text-center w-14">Nilai</th>
-                    <th className="border border-slate-900 py-2 px-2 text-center w-24">Capaian</th>
-                    <th className="border border-slate-900 py-2 px-3 text-left">Deskripsi Capaian Kompetensi dari TP</th>
+                    <th className="border border-slate-900 py-2 px-2 text-center w-16">Nilai Akhir</th>
+                    <th className="border border-slate-900 py-2 px-2 text-center w-28">Capaian Kompetensi</th>
+                    <th className="border border-slate-900 py-2 px-3 text-left">Deskripsi Capaian Pembelajaran</th>
                   </tr>
                 </thead>
                 <tbody>

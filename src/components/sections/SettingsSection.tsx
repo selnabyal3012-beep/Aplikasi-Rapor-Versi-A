@@ -855,23 +855,34 @@ export const SettingsSection: React.FC = () => {
                 <div className="text-center text-[10px] text-slate-500 mb-2">
                   SD NEGERI BALIL • TAHUN AJARAN 2026/2027
                 </div>
-                <table className="w-full border-collapse border border-slate-400 text-left text-xs">
+                <table className="w-full border-collapse border border-slate-400 text-left text-[11px]">
                   <thead>
                     <tr className="bg-slate-100 dark:bg-slate-800">
                       <th className="border border-slate-400 p-1.5 text-center w-8">No</th>
                       <th className="border border-slate-400 p-1.5">Mata Pelajaran</th>
-                      <th className="border border-slate-400 p-1.5 text-center w-14">Nilai</th>
-                      <th className="border border-slate-400 p-1.5">Capaian Kompetensi</th>
+                      <th className="border border-slate-400 p-1.5 text-center w-12">KKM</th>
+                      <th className="border border-slate-400 p-1.5 text-center w-14">Nilai Akhir</th>
+                      <th className="border border-slate-400 p-1.5 text-center w-24">Capaian Kompetensi</th>
+                      <th className="border border-slate-400 p-1.5">Deskripsi Capaian Pembelajaran</th>
                     </tr>
                   </thead>
                   <tbody>
                     <tr>
-                      <td className="border border-slate-400 p-1.5 text-center">1</td>
+                      <td className="border border-slate-400 p-1.5 text-center font-mono">1</td>
                       <td className="border border-slate-400 p-1.5 font-bold">Pendidikan Agama Kristen</td>
-                      <td className="border border-slate-400 p-1.5 text-center font-bold">88</td>
+                      <td className="border border-slate-400 p-1.5 text-center font-mono">75</td>
+                      <td className="border border-slate-400 p-1.5 text-center font-bold font-mono">88</td>
+                      <td className="border border-slate-400 p-1.5 text-center font-semibold">Sangat Baik</td>
                       <td className="border border-slate-400 p-1.5">Menunjukkan penguasaan sangat baik dalam memahami kasih dan teladan Yesus.</td>
                     </tr>
                   </tbody>
+                  <tfoot>
+                    <tr className="bg-slate-100 dark:bg-slate-800 font-bold">
+                      <td colSpan={3} className="border border-slate-400 p-1.5 text-right uppercase">JUMLAH NILAI</td>
+                      <td className="border border-slate-400 p-1.5 text-center font-mono">88</td>
+                      <td colSpan={2} className="border border-slate-400 p-1.5 text-[10px] text-slate-500">Rata-rata Nilai: 88.0</td>
+                    </tr>
+                  </tfoot>
                 </table>
               </div>
             </div>

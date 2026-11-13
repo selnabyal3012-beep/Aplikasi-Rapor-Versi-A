@@ -1951,56 +1951,104 @@ export const PrintReportSection: React.FC<PrintReportSectionProps> = ({ forcedSe
 
                     {/* TABEL NILAI PTS */}
                     <div className="mb-6">
-                      <table className="w-full text-[11px] border-collapse border border-slate-900">
-                        <thead>
-                          <tr className="bg-slate-100 text-slate-900">
-                            <th className="border border-slate-900 py-2 px-2 text-center w-8">No</th>
-                            <th className="border border-slate-900 py-2 px-3 text-left w-52">Mata Pelajaran</th>
-                            <th className="border border-slate-900 py-2 px-2 text-center w-14">Formatif</th>
-                            <th className="border border-slate-900 py-2 px-2 text-center w-14">PTS</th>
-                            <th className="border border-slate-900 py-2 px-2 text-center w-16 bg-slate-200 font-bold">Nilai PTS</th>
-                            <th className="border border-slate-900 py-2 px-2 text-center w-20">Predikat</th>
-                            <th className="border border-slate-900 py-2 px-3 text-left">Catatan Capaian Belajar Tengah Semester</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {filteredMataPelajaran.map((mapel, mIdx) => {
-                            const sc = db.nilaiAkademik.find(
-                              (n) =>
-                                n.nisn === student.nisn &&
-                                n.mataPelajaran === mapel.mataPelajaran &&
-                                n.kelas === selectedKelas &&
-                                n.semester === currentSemester
-                            );
-                            const formatif = sc?.formatif ?? 80;
-                            const ptsScore = sc?.pts ?? formatif;
-                            const nilaiPTS = Math.round((formatif + ptsScore) / 2);
-                            const predikat =
-                              nilaiPTS >= 88 ? 'Sangat Baik' : nilaiPTS >= 78 ? 'Baik' : nilaiPTS >= 68 ? 'Cukup' : 'Perlu Bimbingan';
-                            const tpRes = generateReportDescriptionFromTP(
-                              mapel.mataPelajaran,
-                              selectedKelas,
-                              nilaiPTS,
-                              db.tujuanPembelajaran,
-                              student.namaSiswa,
-                              student.agama
-                            );
-                            const catatan = sc?.deskripsiTercapai || tpRes.deskripsiTercapai || tpRes.deskripsiRapor;
+                      {(() => {
+                        const ptsRows = filteredMataPelajaran.map((mapel) => {
+                          const sc = db.nilaiAkademik.find(
+                            (n) =>
+                              n.nisn === student.nisn &&
+                              n.mataPelajaran === mapel.mataPelajaran &&
+                              n.kelas === selectedKelas &&
+                              n.semester === currentSemester
+                          );
+                          const kkm = sc?.kkm || mapel.kkm || 75;
+                          const formatif = sc?.formatif ?? 80;
+                          const ptsScore = sc?.pts ?? formatif;
+                          const nilaiAkhir = Math.round((formatif + ptsScore) / 2);
+                          const capaianKompetensi =
+                            nilaiAkhir >= 88
+                              ? 'Sangat Baik'
+                              : nilaiAkhir >= 78
+                              ? 'Baik'
+                              : nilaiAkhir >= 68
+                              ? 'Cukup'
+                              : 'Perlu Bimbingan';
+                          const tpRes = generateReportDescriptionFromTP(
+                            mapel.mataPelajaran,
+                            selectedKelas,
+                            nilaiAkhir,
+                            db.tujuanPembelajaran,
+                            student.namaSiswa,
+                            student.agama
+                          );
+                          const deskripsi = sc?.deskripsiTercapai || tpRes.deskripsiTercapai || tpRes.deskripsiRapor;
+                          return {
+                            mapel,
+                            kkm,
+                            formatif,
+                            ptsScore,
+                            nilaiAkhir,
+                            capaianKompetensi,
+                            deskripsi
+                          };
+                        });
+                        const totalPtsNilai = ptsRows.reduce((sum, r) => sum + r.nilaiAkhir, 0);
+                        const avgPtsNilai = ptsRows.length > 0 ? (totalPtsNilai / ptsRows.length).toFixed(2) : '0';
 
-                            return (
-                              <tr key={mapel.kode || mapel.mataPelajaran} className="hover:bg-slate-50/50">
-                                <td className="border border-slate-900 py-2 px-2 text-center font-bold text-slate-600">{mIdx + 1}</td>
-                                <td className="border border-slate-900 py-2 px-3 font-semibold text-slate-900">{mapel.mataPelajaran}</td>
-                                <td className="border border-slate-900 py-2 px-2 text-center font-mono">{formatif}</td>
-                                <td className="border border-slate-900 py-2 px-2 text-center font-mono">{ptsScore}</td>
-                                <td className="border border-slate-900 py-2 px-2 text-center font-bold font-mono bg-slate-100">{nilaiPTS}</td>
-                                <td className="border border-slate-900 py-2 px-2 text-center font-bold text-slate-800">{predikat}</td>
-                                <td className="border border-slate-900 py-2 px-3 text-slate-800 leading-snug">{catatan}</td>
+                        return (
+                          <table className="w-full text-[11px] border-collapse border border-slate-900">
+                            <thead>
+                              <tr className="bg-slate-100 text-slate-900">
+                                <th className="border border-slate-900 py-2 px-2 text-center w-8">No</th>
+                                <th className="border border-slate-900 py-2 px-3 text-left w-44">Mata Pelajaran</th>
+                                <th className="border border-slate-900 py-2 px-2 text-center w-12">KKM</th>
+                                <th className="border border-slate-900 py-2 px-2 text-center w-14">Formatif</th>
+                                <th className="border border-slate-900 py-2 px-2 text-center w-14">PTS</th>
+                                <th className="border border-slate-900 py-2 px-2 text-center w-16 bg-slate-200 font-bold">Nilai Akhir</th>
+                                <th className="border border-slate-900 py-2 px-2 text-center w-24">Capaian Kompetensi</th>
+                                <th className="border border-slate-900 py-2 px-3 text-left">Deskripsi Capaian Pembelajaran</th>
                               </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
+                            </thead>
+                            <tbody>
+                              {ptsRows.map((row, mIdx) => (
+                                <tr key={row.mapel.kode || row.mapel.mataPelajaran} className="hover:bg-slate-50/50">
+                                  <td className="border border-slate-900 py-2 px-2 text-center font-bold text-slate-600">{mIdx + 1}</td>
+                                  <td className="border border-slate-900 py-2 px-3 font-semibold text-slate-900">{row.mapel.mataPelajaran}</td>
+                                  <td className="border border-slate-900 py-2 px-2 text-center font-mono font-bold">{row.kkm}</td>
+                                  <td className="border border-slate-900 py-2 px-2 text-center font-mono">{row.formatif}</td>
+                                  <td className="border border-slate-900 py-2 px-2 text-center font-mono">{row.ptsScore}</td>
+                                  <td className="border border-slate-900 py-2 px-2 text-center font-bold font-mono bg-slate-100">{row.nilaiAkhir}</td>
+                                  <td className="border border-slate-900 py-2 px-2 text-center font-bold text-slate-800">{row.capaianKompetensi}</td>
+                                  <td className="border border-slate-900 py-2 px-3 text-slate-800 leading-snug">{row.deskripsi}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                            <tfoot>
+                              <tr className="bg-slate-100 text-slate-950 font-bold border-t-2 border-slate-900">
+                                <td colSpan={5} className="border border-slate-900 py-2 px-3 text-right uppercase tracking-wider font-bold">
+                                  JUMLAH NILAI
+                                </td>
+                                <td className="border border-slate-900 py-2 px-2 text-center font-mono text-sm font-black bg-slate-200">
+                                  {totalPtsNilai}
+                                </td>
+                                <td colSpan={2} className="border border-slate-900 py-2 px-3 text-slate-600 text-[10px]">
+                                  Total akumulasi capaian nilai tengah semester seluruh mata pelajaran
+                                </td>
+                              </tr>
+                              <tr className="bg-slate-100 text-slate-950 font-bold border-t border-slate-900">
+                                <td colSpan={5} className="border border-slate-900 py-2 px-3 text-right uppercase tracking-wider font-bold">
+                                  RATA-RATA NILAI
+                                </td>
+                                <td className="border border-slate-900 py-2 px-2 text-center font-mono text-sm font-black bg-amber-100 text-amber-950">
+                                  {avgPtsNilai}
+                                </td>
+                                <td colSpan={2} className="border border-slate-900 py-2 px-3 text-slate-600 text-[10px]">
+                                  Rata-rata perolehan nilai peserta didik (Skala 0 - 100)
+                                </td>
+                              </tr>
+                            </tfoot>
+                          </table>
+                        );
+                      })()}
                     </div>
 
                     {/* TANDA TANGAN RAPOR PTS */}

@@ -284,10 +284,10 @@ export const StandardActionToolbar: React.FC<ActionToolbarProps> = ({
           if (res.success) {
             showSaveNotification(res.message);
           } else {
-            alert(`Gagal Impor: ${res.message}`);
+            showSaveNotification(`Gagal Impor: ${res.message}`);
           }
         } catch (err: any) {
-          alert(`Gagal membaca file: ${err.message || 'Format tidak dikenali'}`);
+          showSaveNotification(`Gagal membaca file: ${err.message || 'Format tidak dikenali'}`);
         }
       }
     }
@@ -308,7 +308,7 @@ export const StandardActionToolbar: React.FC<ActionToolbarProps> = ({
             showSaveNotification(`File lampiran "${file.name}" berhasil diunggah!`);
           }
         } catch (err: any) {
-          alert(`Gagal membaca file: ${err.message || 'Format tidak dikenali'}`);
+          showSaveNotification(`Gagal membaca file: ${err.message || 'Format tidak dikenali'}`);
         }
       }
     }

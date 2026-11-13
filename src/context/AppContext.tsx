@@ -855,9 +855,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const syncToCloudFirestore = async () => {
+    if (!auth.currentUser && !firebaseUser) {
+      showSaveNotification('Hubungkan Akun Google Firebase terlebih dahulu (via menu Masuk atau Backup & Restore) sebelum sinkronisasi Cloud.');
+      return;
+    }
     setCloudSyncStatus('syncing');
     try {
-      const res = await saveStateToFirestore(db, firebaseUser?.email || currentUser?.namaLengkap);
+      const res = await saveStateToFirestore(db, firebaseUser?.email || auth.currentUser?.email || currentUser?.namaLengkap);
       setCloudSyncStatus('synced');
       const now = new Date();
       const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(
@@ -867,14 +871,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       showSaveNotification(res.message);
       setTimeout(() => setCloudSyncStatus('idle'), 4000);
     } catch (err: any) {
+      console.error('Cloud sync failed:', err);
       setCloudSyncStatus('error');
       showSaveNotification('Gagal menyinkronkan data ke Cloud Firebase Firestore.');
       setTimeout(() => setCloudSyncStatus('idle'), 4000);
-      throw err;
     }
   };
 
   const loadFromCloudFirestore = async () => {
+    if (!auth.currentUser && !firebaseUser) {
+      showSaveNotification('Hubungkan Akun Google Firebase terlebih dahulu sebelum memulihkan data dari Cloud.');
+      return;
+    }
     setCloudSyncStatus('syncing');
     try {
       const res = await loadStateFromFirestore();
@@ -888,10 +896,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
       setTimeout(() => setCloudSyncStatus('idle'), 4000);
     } catch (err: any) {
+      console.error('Cloud load failed:', err);
       setCloudSyncStatus('error');
       showSaveNotification('Gagal memuat data dari Cloud Firebase.');
       setTimeout(() => setCloudSyncStatus('idle'), 4000);
-      throw err;
     }
   };
 

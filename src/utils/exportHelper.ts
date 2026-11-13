@@ -98,6 +98,112 @@ export function exportStudentsToExcel(
 }
 
 /**
+ * 1B. UNDUH TEMPLATE EXCEL DATA SISWA SIAP ISI & IMPOR (.xlsx)
+ */
+export function exportStudentTemplateToExcel(
+  students: Student[],
+  school: SchoolIdentity,
+  kelasFilter: string = 'IV'
+) {
+  const wb = XLSX.utils.book_new();
+  const targetKelas = kelasFilter === 'SEMUA' ? 'IV' : kelasFilter;
+
+  const sampleOrActiveRows: (string | number)[][] =
+    students.length > 0
+      ? students.map((s, idx) => [
+          idx + 1,
+          s.nisn && !s.nisn.startsWith('BLM_') ? s.nisn : '',
+          s.nis && s.nis !== '-' ? s.nis : '',
+          s.namaSiswa,
+          s.jenisKelamin,
+          s.agama || 'Kristen',
+          s.tempatLahir && s.tempatLahir !== '-' ? s.tempatLahir : '',
+          s.tanggalLahir && s.tanggalLahir !== '-' ? s.tanggalLahir : '',
+          s.nik && s.nik !== '-' ? s.nik : '',
+          s.kelas || targetKelas,
+          s.fase || 'B',
+          s.namaAyah && s.namaAyah !== '-' ? s.namaAyah : '',
+          s.namaIbu && s.namaIbu !== '-' ? s.namaIbu : '',
+          s.alamat || 'Kampung Balil, Oksibil',
+          s.statusSiswa || 'Aktif'
+        ])
+      : [
+          [1, '0098765432', '26001', 'Markus Nabyal', 'L', 'Kristen', 'Balil', '2016-04-12', '9124011204160001', targetKelas, 'B', 'Yohanes Nabyal', 'Maria Kasipmabin', 'Kampung Balil, Oksibil', 'Aktif'],
+          [2, '0098765433', '26002', 'Yohana Kasipmabin', 'P', 'Katolik', 'Oksibil', '2016-08-20', '9124012008160002', targetKelas, 'B', 'Anton Kasipmabin', 'Theresia Uropmabin', 'Jalan Poros Balil', 'Aktif']
+        ];
+
+  const startEmptyNo = sampleOrActiveRows.length + 1;
+  const blankRows: (string | number)[][] = Array.from({ length: 15 }, (_, i) => [
+    startEmptyNo + i,
+    '',
+    '',
+    '',
+    'L',
+    'Kristen',
+    '',
+    '',
+    '',
+    targetKelas,
+    '',
+    '',
+    '',
+    '',
+    'Aktif'
+  ]);
+
+  const rows: (string | number)[][] = [
+    [school.namaPemerintah || 'PEMERINTAH KABUPATEN PEGUNUNGAN BINTANG'],
+    [school.namaInstansi || 'DINAS PENDIDIKAN DAN PENGAJARAN'],
+    [school.namaSekolah || 'SD NEGERI BALIL'],
+    ['TEMPLATE IMPOR DATA SISWA (PESERTA DIDIK) - KURIKULUM MERDEKA'],
+    [`Tahun Pelajaran: ${school.tahunPelajaran} • Isi data mulai baris tabel di bawah ini, lalu simpan (.xlsx) dan impor kembali ke aplikasi.`],
+    [],
+    [
+      'NO',
+      'NISN',
+      'NIS',
+      'NAMA LENGKAP SISWA',
+      'JK (L/P)',
+      'AGAMA',
+      'TEMPAT LAHIR',
+      'TANGGAL LAHIR',
+      'NIK',
+      'KELAS',
+      'FASE',
+      'NAMA AYAH',
+      'NAMA IBU',
+      'ALAMAT PESERTA DIDIK',
+      'STATUS'
+    ],
+    ['(1)', '(2)', '(3)', '(4)', '(5)', '(6)', '(7)', '(8)', '(9)', '(10)', '(11)', '(12)', '(13)', '(14)', '(15)'],
+    ...sampleOrActiveRows,
+    ...blankRows
+  ];
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [
+    { wch: 6 },
+    { wch: 16 },
+    { wch: 12 },
+    { wch: 32 },
+    { wch: 10 },
+    { wch: 14 },
+    { wch: 16 },
+    { wch: 15 },
+    { wch: 18 },
+    { wch: 9 },
+    { wch: 8 },
+    { wch: 24 },
+    { wch: 24 },
+    { wch: 36 },
+    { wch: 12 }
+  ];
+
+  XLSX.utils.book_append_sheet(wb, ws, 'Template Data Siswa');
+  XLSX.writeFile(wb, `template-data-siswa-kelas-${kelasFilter}.xlsx`);
+}
+
+/**
  * 2. EKSPOR DATA SISWA KE CSV (.csv)
  */
 export function exportStudentsToCsv(

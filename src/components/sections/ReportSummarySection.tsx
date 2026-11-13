@@ -47,6 +47,7 @@ export const ReportSummarySection: React.FC = () => {
 
     return {
       student: s,
+      total: totalScore,
       avg: avgScore,
       scoresCount: scores.length,
       attendance: attString,
@@ -58,11 +59,11 @@ export const ReportSummarySection: React.FC = () => {
   });
 
   const exportSummaryCsv = () => {
-    const headers = 'No;NISN;Nama Siswa;Kelas;Rata-rata;Kehadiran;Ekskul;P5;Status\r\n';
+    const headers = 'No;NISN;Nama Siswa;Kelas;Jumlah Nilai;Rata-rata;Kehadiran;Ekskul;P5;Status\r\n';
     const rows = summaryData
       .map(
         (row, idx) =>
-          `"${idx + 1}";"${row.student.nisn}";"${row.student.namaSiswa}";"${selectedKelas}";"${row.avg}";"${row.attendance}";"${row.ekskul}";"${row.p5}";"${row.statusLabel}"`
+          `"${idx + 1}";"${row.student.nisn}";"${row.student.namaSiswa}";"${selectedKelas}";"${row.total}";"${row.avg}";"${row.attendance}";"${row.ekskul}";"${row.p5}";"${row.statusLabel}"`
       )
       .join('\r\n');
     const content = 'sep=;\r\n' + headers + rows;
@@ -145,6 +146,7 @@ export const ReportSummarySection: React.FC = () => {
                 <th className="py-3 px-3">NISN</th>
                 <th className="py-3 px-3">Nama Siswa</th>
                 <th className="py-3 px-2 text-center">Kelas</th>
+                <th className="py-3 px-2 text-center">Jumlah Nilai</th>
                 <th className="py-3 px-2 text-center">Rata-Rata</th>
                 <th className="py-3 px-3 text-center">Kehadiran (S/I/A)</th>
                 <th className="py-3 px-3 text-center">Ekskul</th>
@@ -160,6 +162,9 @@ export const ReportSummarySection: React.FC = () => {
                   <td className="py-3 px-3 font-mono font-bold text-slate-600">{row.student.nisn}</td>
                   <td className="py-3 px-3 font-bold text-slate-800">{row.student.namaSiswa}</td>
                   <td className="py-3 px-2 text-center font-bold text-slate-700">Kls {selectedKelas}</td>
+                  <td className="py-3 px-2 text-center font-bold font-mono text-slate-800">
+                    {row.total}
+                  </td>
                   <td className="py-3 px-2 text-center font-black font-mono text-emerald-800 text-sm">
                     {row.avg}
                   </td>

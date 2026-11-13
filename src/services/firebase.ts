@@ -1,13 +1,35 @@
-import { initializeApp } from 'firebase/app';
+import { getApp, getApps, initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut as fbSignOut } from 'firebase/auth';
-import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
+import {
+  initializeFirestore,
+  getFirestore,
+  doc,
+  getDocFromServer,
+  type Firestore,
+  type FirestoreSettings,
+} from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
-// Initialize Firebase App
-const app = initializeApp(firebaseConfig);
+// Initialize Firebase App safely (avoids duplicate app errors during reloads)
+const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 
-// Initialize Firestore with configured databaseId
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+// Initialize Firestore with long-polling XMLHttpRequest transport.
+// Disables Fetch readable streams WebChannel transport which triggers unhandled
+// AbortError ("signal is aborted without reason") behind reverse proxies/iframes.
+function initDb(): Firestore {
+  const settings = {
+    experimentalForceLongPolling: true,
+    useFetchStreams: false,
+  } as FirestoreSettings;
+
+  try {
+    return initializeFirestore(app, settings, firebaseConfig.firestoreDatabaseId);
+  } catch {
+    return getFirestore(app, firebaseConfig.firestoreDatabaseId);
+  }
+}
+
+export const db = initDb();
 
 // Initialize Firebase Authentication
 export const auth = getAuth(app);
@@ -66,12 +88,14 @@ export async function testFirestoreConnection(): Promise<boolean> {
     await getDocFromServer(doc(db, 'test', 'connection'));
     return true;
   } catch (error) {
-    if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.warn('Firebase client is offline or network restricted:', error.message);
-    } else {
-      console.info('Firestore connection tested successfully.');
+    if (error instanceof Error) {
+      if (error.name === 'AbortError' || error.message.includes('the client is offline')) {
+        console.warn('Firebase client is offline or network restricted:', error.message);
+      } else {
+        console.warn('Firestore connection check note:', error.message);
+      }
     }
-    return true;
+    return false;
   }
 }
 

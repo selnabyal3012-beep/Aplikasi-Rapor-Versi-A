@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   GraduationCap,
   UserPlus,
@@ -10,29 +10,44 @@ import {
   CheckCircle2,
   X,
   Save,
-  BookOpen,
   Users,
   FolderDown,
   Eye,
-  FileSpreadsheet
+  FileSpreadsheet,
+  FileUp,
+  AlertCircle
 } from 'lucide-react';
 import { useApp, getFaseFromKelas } from '../../context/AppContext';
-import { Student, ClassLevel, FaseType, SemesterType } from '../../types';
+import { Student, ClassLevel, FaseType } from '../../types';
 import { StandardActionToolbar } from '../common/StandardActionToolbar';
 import { SaveStatusIndicator } from '../common/SaveStatusIndicator';
 import { useSaveFeedback } from '../../hooks/useSaveFeedback';
-import { exportStudentsToExcel, exportStudentsToCsv } from '../../utils/exportHelper';
-import * as XLSX from 'xlsx';
+import { exportStudentsToExcel, exportStudentsToCsv, exportStudentTemplateToExcel } from '../../utils/exportHelper';
 import { parseAndImportTemplate } from '../../utils/templateImporter';
 
 export const StudentSection: React.FC = () => {
   const appContext = useApp();
-  const { db, saveSiswa, deleteSiswa, selectedKelas, selectedSemester, setActiveMenu, openReportPreview, showSaveNotification } = appContext;
+  const {
+    db,
+    saveSiswa,
+    deleteSiswa,
+    saveAllData,
+    syncAllStudentConnections,
+    selectedKelas,
+    setSelectedKelas,
+    selectedSemester,
+    openReportPreview,
+    showSaveNotification
+  } = appContext;
   const { status: modalSaveStatus, triggerSave: triggerModalSave } = useSaveFeedback();
+  const { status: toolbarSaveStatus, triggerSave: triggerToolbarSave } = useSaveFeedback();
   const [search, setSearch] = useState('');
   const [filterKelas, setFilterKelas] = useState<string>(selectedKelas);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingSiswa, setEditingSiswa] = useState<Student | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importBanner, setImportBanner] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const directImportRef = useRef<HTMLInputElement>(null);
 
   const getFase = (kelas: ClassLevel): FaseType => {
     return getFaseFromKelas(kelas);
@@ -48,8 +63,8 @@ export const StudentSection: React.FC = () => {
     tanggalLahir: '2016-01-01',
     nik: '',
     agama: 'Kristen',
-    kelas: (filterKelas as ClassLevel) || 'IV',
-    fase: getFase((filterKelas as ClassLevel) || 'IV'),
+    kelas: (filterKelas === 'SEMUA' ? selectedKelas : (filterKelas as ClassLevel)) || 'IV',
+    fase: getFase((filterKelas === 'SEMUA' ? selectedKelas : (filterKelas as ClassLevel)) || 'IV'),
     semester: selectedSemester,
     tahunPelajaran: db.sekolah.tahunPelajaran,
     namaAyah: '',
@@ -61,16 +76,17 @@ export const StudentSection: React.FC = () => {
   const [formData, setFormData] = useState<Student>(defaultNewSiswa);
 
   const handleOpenAdd = () => {
+    const activeKls = (filterKelas === 'SEMUA' ? selectedKelas : (filterKelas as ClassLevel)) || 'IV';
     setEditingSiswa(null);
     setFormData({
       ...defaultNewSiswa,
-      idSiswa: `S00${db.siswa.length + 1}`,
+      idSiswa: `S_${Date.now()}`,
       nisn: '',
       nis: '',
       tempatLahir: '',
       tanggalLahir: '',
-      kelas: (filterKelas as ClassLevel) || 'IV',
-      fase: getFase((filterKelas as ClassLevel) || 'IV')
+      kelas: activeKls,
+      fase: getFase(activeKls)
     });
     setModalOpen(true);
   };
@@ -83,14 +99,13 @@ export const StudentSection: React.FC = () => {
       nis: siswa.nis === '-' ? '' : siswa.nis,
       tempatLahir: siswa.tempatLahir === '-' ? '' : siswa.tempatLahir,
       tanggalLahir: siswa.tanggalLahir === '-' ? '' : siswa.tanggalLahir,
-      nik: siswa.nik === '-' ? '' : siswa.nik,
+      nik: siswa.nik === '-' ? '' : siswa.nik
     });
     setModalOpen(true);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Di pedalaman Papua, jika siswa belum ada NISN, buatkan identifier unik internal agar nilai tidak bentrok
     const rawNisn = formData.nisn ? formData.nisn.trim() : '';
     const safeNisn = rawNisn === '' || rawNisn === '-' ? `BLM_${formData.idSiswa}` : rawNisn;
 
@@ -100,14 +115,14 @@ export const StudentSection: React.FC = () => {
       nis: formData.nis ? formData.nis.trim() || '-' : '-',
       tempatLahir: formData.tempatLahir ? formData.tempatLahir.trim() || '-' : '-',
       tanggalLahir: formData.tanggalLahir || '-',
-      nik: formData.nik ? formData.nik.trim() || '-' : '-',
+      nik: formData.nik ? formData.nik.trim() || '-' : '-'
     };
 
     triggerModalSave(async () => {
       saveSiswa(cleanedSiswa);
       setTimeout(() => {
         setModalOpen(false);
-      }, 700);
+      }, 500);
     });
   };
 
@@ -129,76 +144,75 @@ export const StudentSection: React.FC = () => {
 
   const exportStudentsCsv = () => {
     exportStudentsToCsv(filtered, db.sekolah, filterKelas);
+    showSaveNotification(`Berhasil mengekspor ${filtered.length} data siswa ke CSV (.csv)!`);
   };
 
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
 
   const handleExportExcel = () => {
     exportStudentsToExcel(filtered, db.sekolah, filterKelas);
+    showSaveNotification(`Berhasil mengekspor ${filtered.length} data siswa ke Excel (.xlsx)!`);
+  };
+
+  const downloadStudentTemplateExcel = () => {
+    const sourceRows = filtered.length > 0 ? filtered : db.siswa;
+    exportStudentTemplateToExcel(sourceRows, db.sekolah, filterKelas);
+    showSaveNotification('Template Excel Data Siswa (.xlsx) berhasil diunduh! Silakan isi lalu impor kembali.');
+  };
+
+  const handleSaveAllStudents = () => {
+    triggerToolbarSave(async () => {
+      syncAllStudentConnections();
+      saveAllData();
+      setImportBanner({
+        type: 'success',
+        text: `Seluruh data siswa (${db.siswa.length} peserta didik) berhasil disimpan dan disinkronkan ke kelas, mapel, nilai, kehadiran, dan rapor.`
+      });
+      showSaveNotification('Seluruh data siswa berhasil disimpan dengan aman!');
+    });
   };
 
   const handleImportFile = async (file: File) => {
+    setIsImporting(true);
+    setImportBanner(null);
     try {
-      const buffer = await file.arrayBuffer();
-      const wb = XLSX.read(buffer, { type: 'array' });
-      const firstSheet = wb.Sheets[wb.SheetNames[0]];
-      const rowsJson = XLSX.utils.sheet_to_json<(string | number)[]>(firstSheet, { header: 1 });
-      let headerIdx = -1;
-      for (let i = 0; i < Math.min(rowsJson.length, 12); i++) {
-        const rowStr = (rowsJson[i] || []).join(' ').toLowerCase();
-        if (rowStr.includes('nisn') || rowStr.includes('nama')) {
-          headerIdx = i;
-          break;
+      const result = await parseAndImportTemplate(file, 'template_siswa', appContext);
+      if (result.success) {
+        // Pastikan siswa hasil impor langsung terlihat di tabel
+        setSearch('');
+        if (result.importedClasses && result.importedClasses.length > 0) {
+          if (result.importedClasses.length === 1) {
+            const targetKls = result.importedClasses[0];
+            setFilterKelas(targetKls);
+            setSelectedKelas(targetKls);
+          } else {
+            setFilterKelas('SEMUA');
+          }
+        } else {
+          setFilterKelas('SEMUA');
         }
+        saveAllData();
+        setImportBanner({ type: 'success', text: result.message });
+        showSaveNotification(result.message);
+      } else {
+        setImportBanner({ type: 'error', text: result.message });
+        showSaveNotification(`Gagal impor: ${result.message}`);
       }
-      if (headerIdx >= 0) {
-        const headers = rowsJson[headerIdx].map((h) => String(h || '').toLowerCase());
-        const nisnCol = headers.findIndex((h) => h.includes('nisn'));
-        const nisCol = headers.findIndex((h) => h.includes('nis') && !h.includes('nisn'));
-        const namaCol = headers.findIndex((h) => h.includes('nama') || h.includes('siswa'));
-        const jkCol = headers.findIndex((h) => h.includes('jk') || h.includes('kelamin'));
-        const tplCol = headers.findIndex((h) => h.includes('tempat'));
-        const tglCol = headers.findIndex((h) => h.includes('tgl') || h.includes('tanggal'));
-        const agamaCol = headers.findIndex((h) => h.includes('agama'));
-        const kelasCol = headers.findIndex((h) => h.includes('kelas'));
-        const ayahCol = headers.findIndex((h) => h.includes('ayah'));
-        const ibuCol = headers.findIndex((h) => h.includes('ibu'));
-        const alamatCol = headers.findIndex((h) => h.includes('alamat'));
-
-        let count = 0;
-        for (let r = headerIdx + 1; r < rowsJson.length; r++) {
-          const rowData = rowsJson[r];
-          if (!rowData || rowData.length === 0) continue;
-          const namaVal = String(rowData[namaCol] || '').trim();
-          if (!namaVal) continue;
-          const nisnVal = String(rowData[nisnCol] || '').trim();
-          const targetKelas = (rowData[kelasCol] ? String(rowData[kelasCol]).trim() : filterKelas === 'SEMUA' ? 'IV' : filterKelas) as ClassLevel;
-          const newStudent: Student = {
-            idSiswa: `S_IMP_${Date.now()}_${count}`,
-            nisn: nisnVal || `BLM_${Date.now()}_${count}`,
-            nis: nisCol >= 0 ? String(rowData[nisCol] || '-') : '-',
-            namaSiswa: namaVal,
-            jenisKelamin: jkCol >= 0 && String(rowData[jkCol]).toUpperCase().startsWith('P') ? 'P' : 'L',
-            tempatLahir: tplCol >= 0 ? String(rowData[tplCol] || 'Balil') : 'Balil',
-            tanggalLahir: tglCol >= 0 ? String(rowData[tglCol] || '2016-01-01') : '2016-01-01',
-            nik: '-',
-            agama: agamaCol >= 0 ? (String(rowData[agamaCol]).trim() as any) || 'Kristen' : 'Kristen',
-            kelas: targetKelas,
-            fase: getFase(targetKelas),
-            semester: selectedSemester,
-            tahunPelajaran: db.sekolah.tahunPelajaran,
-            namaAyah: ayahCol >= 0 ? String(rowData[ayahCol] || '-') : '-',
-            namaIbu: ibuCol >= 0 ? String(rowData[ibuCol] || '-') : '-',
-            alamat: alamatCol >= 0 ? String(rowData[alamatCol] || 'Kampung Balil') : 'Kampung Balil',
-            statusSiswa: 'Aktif'
-          };
-          saveSiswa(newStudent);
-          count++;
-        }
-      }
-    } catch (e) {
-      console.error('Import error', e);
+    } catch (e: any) {
+      const msg = `Gagal membaca file Excel/CSV: ${e?.message || 'Format berkas tidak sesuai'}`;
+      setImportBanner({ type: 'error', text: msg });
+      showSaveNotification(msg);
+    } finally {
+      setIsImporting(false);
     }
+  };
+
+  const handleDirectFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handleImportFile(file);
+    }
+    if (e.target) e.target.value = '';
   };
 
   const handleClearFilters = () => {
@@ -236,8 +250,8 @@ export const StudentSection: React.FC = () => {
       tempatLahir: '',
       tanggalLahir: '',
       nik: '',
-      kelas: (filterKelas as ClassLevel) || 'IV',
-      fase: getFase((filterKelas as ClassLevel) || 'IV'),
+      kelas: (filterKelas === 'SEMUA' ? selectedKelas : (filterKelas as ClassLevel)) || 'IV',
+      fase: getFase((filterKelas === 'SEMUA' ? selectedKelas : (filterKelas as ClassLevel)) || 'IV'),
       semester: selectedSemester,
       tahunPelajaran: db.sekolah.tahunPelajaran,
       namaAyah: '',
@@ -249,6 +263,15 @@ export const StudentSection: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Hidden input untuk Impor Excel langsung dari tombol Header */}
+      <input
+        ref={directImportRef}
+        type="file"
+        accept=".xlsx,.xls,.csv"
+        onChange={handleDirectFileInputChange}
+        className="hidden"
+      />
+
       {/* Header */}
       <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -267,28 +290,50 @@ export const StudentSection: React.FC = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <SaveStatusIndicator status={toolbarSaveStatus} />
           <button
-            onClick={() => setActiveMenu('template_data')}
+            type="button"
+            onClick={downloadStudentTemplateExcel}
             className="inline-flex items-center gap-1.5 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs rounded-xl transition-colors cursor-pointer border border-indigo-200"
-            title="Lihat & Unduh Template Data Siswa"
+            title="Unduh langsung Template Excel (.xlsx) Data Siswa untuk diisi & diimpor kembali"
           >
-            <FolderDown size={14} /> Unduh Template Siswa
+            <FolderDown size={14} /> Template Excel (.xlsx)
           </button>
           <button
+            type="button"
+            disabled={isImporting}
+            onClick={() => directImportRef.current?.click()}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-violet-600 hover:bg-violet-700 text-white font-extrabold text-xs rounded-xl transition-all shadow-xs cursor-pointer disabled:opacity-60"
+            title="Impor langsung data siswa dari file Microsoft Excel (.xlsx / .xls / .csv) dan otomatis masuk ke tabel"
+          >
+            <FileUp size={15} /> {isImporting ? 'Mengimpor...' : 'Impor Excel (.xlsx)'}
+          </button>
+          <button
+            type="button"
             onClick={handleExportExcel}
             className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl transition-all shadow-xs cursor-pointer hover:scale-102 ring-1 ring-emerald-400/50"
-            title="Ekspor seluruh data siswa kelas ini ke file Microsoft Excel (.xlsx)"
+            title="Ekspor seluruh data siswa ke file Microsoft Excel (.xlsx)"
           >
             <FileSpreadsheet size={15} /> Ekspor Excel (.xlsx)
           </button>
           <button
+            type="button"
             onClick={exportStudentsCsv}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-slate-700 hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition-all shadow-xs cursor-pointer hover:scale-102"
-            title="Ekspor seluruh data siswa kelas ini ke format CSV (.csv)"
+            className="inline-flex items-center gap-1.5 px-3 py-2 bg-slate-700 hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition-all shadow-xs cursor-pointer"
+            title="Ekspor seluruh data siswa ke format CSV (.csv)"
           >
-            <Download size={14} /> Ekspor CSV (.csv)
+            <Download size={14} /> CSV
           </button>
           <button
+            type="button"
+            onClick={handleSaveAllStudents}
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs rounded-xl transition-all shadow-md cursor-pointer ring-1 ring-emerald-400/50"
+            title="Simpan & sinkronkan seluruh data siswa ke sistem dan rapor"
+          >
+            <Save size={15} /> Simpan Data
+          </button>
+          <button
+            type="button"
             onClick={handleOpenAdd}
             className="inline-flex items-center gap-2 px-4 py-2 bg-blue-700 hover:bg-blue-800 text-white font-bold text-xs rounded-xl transition-all shadow-md cursor-pointer"
           >
@@ -297,13 +342,42 @@ export const StudentSection: React.FC = () => {
         </div>
       </div>
 
+      {/* Notifikasi Hasil Impor / Simpan */}
+      {importBanner && (
+        <div
+          className={`rounded-2xl p-4 border flex items-center justify-between gap-3 text-xs font-semibold shadow-xs ${
+            importBanner.type === 'success'
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+              : 'bg-rose-50 border-rose-200 text-rose-900'
+          }`}
+        >
+          <div className="flex items-center gap-2.5">
+            {importBanner.type === 'success' ? (
+              <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />
+            ) : (
+              <AlertCircle size={18} className="text-rose-600 shrink-0" />
+            )}
+            <span>{importBanner.text}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setImportBanner(null)}
+            className="p-1 rounded-lg hover:bg-black/5 cursor-pointer"
+            title="Tutup pesan"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
       {/* BARIS TOMBOL AKSI LENGKAP DATA SISWA */}
       <StandardActionToolbar
         title="Aksi Data Siswa"
         badge={filterKelas === 'SEMUA' ? 'Semua Kelas' : `Kelas ${filterKelas}`}
         selectedCount={selectedStudentId ? 1 : 0}
-        onSave={handleOpenAdd}
-        saveLabel="Tambah / Simpan"
+        onSave={handleSaveAllStudents}
+        saveLabel="Simpan Data"
+        saveStatus={toolbarSaveStatus}
         onUpdate={handleEditSelected}
         updateLabel="Update Siswa"
         onEdit={handleEditSelected}
@@ -320,8 +394,8 @@ export const StudentSection: React.FC = () => {
         uploadLabel="Upload File Siswa"
         onClear={handleClearFilters}
         clearLabel="Bersihkan Filter"
-        onTemplate={() => setActiveMenu('template_data')}
-        templateLabel="Template Siswa"
+        onTemplate={downloadStudentTemplateExcel}
+        templateLabel="Template Excel (.xlsx)"
       />
 
       {/* Filter and Search Bar */}
@@ -440,7 +514,13 @@ export const StudentSection: React.FC = () => {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filtered.map((s, idx) => (
-                <tr key={s.idSiswa} className="hover:bg-slate-50/70">
+                <tr
+                  key={s.idSiswa}
+                  onClick={() => setSelectedStudentId(s.idSiswa)}
+                  className={`cursor-pointer transition-colors ${
+                    selectedStudentId === s.idSiswa ? 'bg-blue-50/90' : 'hover:bg-slate-50/70'
+                  }`}
+                >
                   <td className="py-3 px-3 text-slate-400 font-mono">{idx + 1}</td>
                   <td className="py-3 px-3">
                     <div className="font-mono font-bold text-slate-800">

@@ -134,10 +134,10 @@ export const AcademicReportViewSection: React.FC<AcademicReportViewSectionProps>
       if (res.success) {
         showSaveNotification(res.message);
       } else {
-        alert(res.message);
+        showSaveNotification(`Gagal Impor: ${res.message}`);
       }
     } catch (err: any) {
-      alert(`Gagal membaca file: ${err.message || 'Format tidak valid'}`);
+      showSaveNotification(`Gagal membaca file: ${err.message || 'Format tidak valid'}`);
     }
   };
 
@@ -387,7 +387,7 @@ export const AcademicReportViewSection: React.FC<AcademicReportViewSectionProps>
       'KKM',
       'Nilai Akhir',
       'Capaian Kompetensi',
-      'Deskripsi Capaian Pembelajaran dari TP',
+      'Deskripsi Capaian Pembelajaran',
       'Kehadiran (S/I/A)',
       'Catatan Wali Kelas',
       'Keputusan Kenaikan Kelas'
@@ -964,7 +964,7 @@ export const AcademicReportViewSection: React.FC<AcademicReportViewSectionProps>
             [`Nama Siswa: ${currentStudent?.namaSiswa || '-'} • NISN: ${currentStudent?.nisn || '-'}`],
             [`Kelas: ${selectedKelas} • Semester: ${activeSemester}`],
             [],
-            ['NO', 'MATA PELAJARAN', 'KKM', 'NILAI AKHIR', 'CAPAIAN KOMPETENSI', 'DESKRIPSI CAPAIAN'],
+            ['NO', 'MATA PELAJARAN', 'KKM', 'NILAI AKHIR', 'CAPAIAN KOMPETENSI', 'DESKRIPSI CAPAIAN PEMBELAJARAN'],
             ['(1)', '(2)', '(3)', '(4)', '(5)', '(6)'],
             ...studentScores.map((sc, i) => [
               i + 1,

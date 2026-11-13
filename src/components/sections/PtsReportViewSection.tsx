@@ -44,10 +44,10 @@ export const PtsReportViewSection: React.FC = () => {
       if (res.success) {
         showSaveNotification(res.message);
       } else {
-        alert(res.message);
+        showSaveNotification(`Gagal Impor: ${res.message}`);
       }
     } catch (err: any) {
-      alert(`Gagal membaca file: ${err.message || 'Format tidak valid'}`);
+      showSaveNotification(`Gagal membaca file: ${err.message || 'Format tidak valid'}`);
     }
   };
 
@@ -176,11 +176,12 @@ export const PtsReportViewSection: React.FC = () => {
     csv += `Kelas;${selectedKelas}\r\n`;
     csv += `Semester;Tengah Semester ${selectedSemester}\r\n`;
     csv += `Tahun Pelajaran;${db.sekolah.tahunPelajaran}\r\n\r\n`;
-    csv += `No;Mata Pelajaran;Nilai Formatif;Nilai PTS;Nilai Rapor PTS;Predikat;Catatan Kemajuan\r\n`;
+    csv += `No;Mata Pelajaran;KKM;Nilai Formatif;Nilai PTS;Nilai Akhir;Capaian Kompetensi;Deskripsi Capaian Pembelajaran\r\n`;
     studentScores.forEach((item, idx) => {
-      csv += `${idx + 1};"${item.mapel.mataPelajaran}";${item.formatif};${item.ptsScore};${item.nilaiTengahSemester};"${item.predikat}";"${item.catatan.replace(/"/g, '""')}"\r\n`;
+      csv += `${idx + 1};"${item.mapel.mataPelajaran}";${item.kkm};${item.formatif};${item.ptsScore};${item.nilaiTengahSemester};"${item.capaianKompetensi}";"${item.catatan.replace(/"/g, '""')}"\r\n`;
     });
-    csv += `\r\nRata-rata Nilai PTS;${avgPts}\r\n`;
+    csv += `\r\nJUMLAH NILAI;${totalPts}\r\n`;
+    csv += `RATA-RATA NILAI;${avgPts}\r\n`;
 
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -202,12 +203,13 @@ export const PtsReportViewSection: React.FC = () => {
       'NISN',
       'Nama Siswa',
       'Mata Pelajaran',
+      'KKM',
       'Nilai Formatif (0-100)',
       'Nilai PTS (0-100)',
-      'Nilai Rapor PTS',
-      'Predikat',
+      'Nilai Akhir',
+      'Capaian Kompetensi',
       'Kode TP Terhubung',
-      'Catatan Kemajuan Tengah Semester dari TP'
+      'Deskripsi Capaian Pembelajaran'
     ];
 
     const aoaData: (string | number)[][] = [
@@ -224,13 +226,16 @@ export const PtsReportViewSection: React.FC = () => {
         currentStudent?.nisn || '-',
         currentStudent?.namaSiswa || '-',
         sc.mapel.mataPelajaran,
+        sc.kkm,
         sc.formatif,
         sc.ptsScore,
         sc.nilaiTengahSemester,
-        sc.predikat,
+        sc.capaianKompetensi,
         sc.linkedTpKodes?.join(', ') || 'TP001',
         sc.catatan
-      ])
+      ]),
+      ['', '', '', 'JUMLAH NILAI', '', '', '', totalPts, '', '', ''],
+      ['', '', '', 'RATA-RATA NILAI', '', '', '', Number(avgPts), '', '', '']
     ];
 
     for (let i = 0; i < 10; i++) {
@@ -243,10 +248,11 @@ export const PtsReportViewSection: React.FC = () => {
       { wch: 18 },
       { wch: 30 },
       { wch: 32 },
+      { wch: 8 },
       { wch: 14 },
       { wch: 14 },
-      { wch: 16 },
       { wch: 14 },
+      { wch: 20 },
       { wch: 18 },
       { wch: 55 }
     ];
@@ -405,20 +411,23 @@ export const PtsReportViewSection: React.FC = () => {
             [`Nama Siswa: ${currentStudent.namaSiswa} • NISN: ${currentStudent.nisn}`],
             [`Kelas: ${selectedKelas} • Semester: ${selectedSemester}`],
             [],
-            ['NO', 'MATA PELAJARAN', 'FORMATIF', 'NILAI PTS', 'NILAI RAPOR PTS', 'PREDIKAT', 'CATATAN KEMAJUAN'],
-            ['(1)', '(2)', '(3)', '(4)', '(5)', '(6)', '(7)'],
+            ['NO', 'MATA PELAJARAN', 'KKM', 'FORMATIF', 'NILAI PTS', 'NILAI AKHIR', 'CAPAIAN KOMPETENSI', 'DESKRIPSI CAPAIAN PEMBELAJARAN'],
+            ['(1)', '(2)', '(3)', '(4)', '(5)', '(6)', '(7)', '(8)'],
             ...studentScores.map((sc, i) => [
               i + 1,
               sc.mapel.mataPelajaran,
+              sc.kkm,
               sc.formatif,
               sc.ptsScore,
               sc.nilaiTengahSemester,
-              sc.predikat,
+              sc.capaianKompetensi,
               sc.catatan
-            ])
+            ]),
+            ['', 'JUMLAH NILAI', '', '', '', totalPts, '', ''],
+            ['', 'RATA-RATA NILAI', '', '', '', Number(avgPts), '', '']
           ];
           const ws = XLSX.utils.aoa_to_sheet(data);
-          ws['!cols'] = [{ wch: 6 }, { wch: 30 }, { wch: 12 }, { wch: 12 }, { wch: 16 }, { wch: 12 }, { wch: 45 }];
+          ws['!cols'] = [{ wch: 6 }, { wch: 30 }, { wch: 8 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 22 }, { wch: 55 }];
           XLSX.utils.book_append_sheet(wb, ws, 'Rapor PTS');
           XLSX.writeFile(wb, `rapor-pts-${currentStudent.namaSiswa.toLowerCase().replace(/\s+/g, '-')}.xlsx`);
         }}
@@ -598,7 +607,7 @@ export const PtsReportViewSection: React.FC = () => {
             <tfoot>
               <tr className="bg-slate-100 font-bold border-t-2 border-slate-900">
                 <td colSpan={5} className="border border-slate-900 py-2 px-3 text-right uppercase tracking-wider">
-                  JUMLAH NILAI TENGAH SEMESTER :
+                  JUMLAH NILAI :
                 </td>
                 <td className="border border-slate-900 py-2 px-2 text-center font-mono text-sm bg-slate-200 font-black">
                   {totalPts}
@@ -609,7 +618,7 @@ export const PtsReportViewSection: React.FC = () => {
               </tr>
               <tr className="bg-slate-100 font-bold border-t border-slate-900">
                 <td colSpan={5} className="border border-slate-900 py-2 px-3 text-right uppercase tracking-wider">
-                  RATA-RATA NILAI TENGAH SEMESTER :
+                  RATA-RATA NILAI :
                 </td>
                 <td className="border border-slate-900 py-2 px-2 text-center font-mono text-sm bg-amber-100 font-black text-amber-950">
                   {avgPts}
